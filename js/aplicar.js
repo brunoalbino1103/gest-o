@@ -41,6 +41,7 @@ export function previa(a) {
     case 'guia_fgts': case 'guia_darf_dp': case 'guia_darf_fiscal': case 'guia_das': case 'guia_sindical': return a.semTexto ? 'Guia guardada (escaneada)' : `${fmtVal(d.valor)} · vence ${fmtD(d.vencimento) || '?'}`;
     case 'cartao_ponto': return a.semTexto ? 'Cartão guardado (escaneado, sem leitura)' : `${nc} cartão(ões) de ponto com ${d.colaboradores.reduce((s, c) => s + c.dias.length, 0)} dias de batidas`;
     case 'recibo_dctfweb': return 'DCTFWeb entregue';
+    case 'ficha_colaborador': { const c = d.colaborador || {}; return `Cadastro de ${c.nome || '(sem nome)'}: dados pessoais${c.cargo ? ', contrato' : ''}${c.dependentes?.length ? ` e ${c.dependentes.length} dependente(s)` : ''}`; }
     case 'nota': return `${a.dados.tipo_documento} ${a.dados.numero || ''} · ${fmtVal(a.dados.valor_nf)}${a.dados.cancelada ? ' · cancelada' : ''}`;
     case 'cancelamento': return `Cancela a nota nº ${+(a.dados.chave || '').slice(25, 34) || '?'}`;
     case 'inutilizacao': return `Inutiliza nº ${a.dados.n_ini}${a.dados.n_fin !== a.dados.n_ini ? ' a ' + a.dados.n_fin : ''} (série ${a.dados.serie})`;
@@ -125,7 +126,7 @@ export async function aplicarTudo(itens, aoProgresso) {
           break;
         }
         case 'folha_resumo':
-          if (a.competencia) { await db.gravar('folha_resumos', { cliente_id: cid, competencia: a.competencia, proventos: d.proventos, descontos: d.descontos, liquido: d.liquido, fgts: d.fgts, inss: d.inss, irrf: d.irrf, empregados: d.empregados, contribuintes: d.contribuintes, admissoes: d.admissoes, demitidos: d.demitidos, rubricas: d.rubricas, documento_id: doc.id }, 'cliente_id,competencia'); conta.folhas++; }
+          if (a.competencia) { await db.gravar('folha_resumos', { cliente_id: cid, competencia: a.competencia, proventos: d.proventos, descontos: d.descontos, liquido: d.liquido, fgts: d.fgts, inss: d.inss, irrf: d.irrf, sal_familia: d.sal_familia || 0, sal_maternidade: d.sal_maternidade || 0, empregados: d.empregados, contribuintes: d.contribuintes, admissoes: d.admissoes, demitidos: d.demitidos, rubricas: d.rubricas, documento_id: doc.id }, 'cliente_id,competencia'); conta.folhas++; }
           break;
         case 'guia_fgts': case 'guia_darf_dp': case 'guia_darf_fiscal': case 'guia_das': case 'guia_sindical':
           if (a.competencia && !a.semTexto) { await db.gravar('guias', { cliente_id: cid, tipo: a.tipo, competencia: a.competencia, vencimento: d.vencimento || null, valor: d.valor || null, numero: d.numero || d.identificador || null, detalhe: { codigos: d.codigos || [], beneficiario: d.beneficiario || null, trabalhadores: d.trabalhadores || null }, documento_id: doc.id }, 'cliente_id,tipo,competencia'); conta.guias++; }
@@ -139,6 +140,15 @@ export async function aplicarTudo(itens, aoProgresso) {
             conta.ponto++;
           }
           break;
+        case 'ficha_colaborador': {
+          // a ficha preenchida vale mais que o que já estava: completa e corrige o cadastro
+          const x = d.colaborador; if (!x.nome) throw new Error('Ficha sem o nome do colaborador.');
+          const f = await colaborador(cid, x, conta);
+          const campos = Object.fromEntries(Object.entries(x).filter(([k, v]) => v !== null && v !== undefined && !(Array.isArray(v) && !v.length) && k !== 'nome'));
+          if (x.nome && x.nome.length >= (f.nome || '').length) campos.nome = x.nome;
+          await db.salvarFuncionario({ id: f.id, ...campos });
+          break;
+        }
         case 'nota':
           try { await db.inserirNota({ ...linhaPainel(a.dados, c.cnpj), cliente_id: cid, documento_id: doc.id, competencia: a.competencia }); conta.notas++; } catch (e) { if (!/já importada|duplicate/i.test(e.message)) throw e; }
           break;

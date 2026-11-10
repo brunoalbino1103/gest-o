@@ -2,7 +2,8 @@
 import db from '../db.js';
 import { esc, dataBR, aviso, modal, confirmar, diasAte, hojeISO } from '../util.js';
 import { S } from '../estado.js';
-import { topo, recarregarTela } from '../app.js';
+import { topo, recarregarTela, irPara } from '../app.js';
+import { TIPOS_RESCISAO, AVISOS } from '../calculos.js';
 import { nomeEmp, empresasDP } from './dp-comum.js';
 
 const TIPOS = { admissao: 'Admissão', rescisao: 'Rescisão', afastamento: 'Afastamento', alteracao: 'Alteração contratual', ferias: 'Férias' };
@@ -17,6 +18,14 @@ export function prazoDe(tipo, data) {
   if (tipo === 'ferias') return dia(data, -2);
   return data;
 }
+// o que precisa ser feito em cada tipo de movimentação
+export const CHECK = {
+  admissao: ['Ficha do colaborador preenchida', 'Documentos pessoais recebidos', 'Exame admissional (ASO)', 'Contrato de trabalho / experiência assinado', 'eSocial S-2200 enviado (até o dia anterior)', 'Cadastro no relógio de ponto', 'Vale-transporte e benefícios'],
+  rescisao: ['Aviso prévio assinado', 'Exame demissional (ASO)', 'Cálculo da rescisão conferido', 'TRCT assinado', 'Guia do FGTS rescisório gerada', 'eSocial S-2299 enviado', 'Pagamento feito (até 10 dias)', 'Chave do FGTS e seguro-desemprego liberados'],
+  afastamento: ['Atestado ou documento recebido', 'Lançado no ponto e na folha', 'Mais de 15 dias: encaminhado ao INSS', 'eSocial S-2230 enviado', 'Data de retorno registrada'],
+  ferias: ['Aviso de férias entregue (30 dias antes)', 'Recibo de férias assinado', 'Pagamento feito (2 dias antes)', 'Lançado no ponto'],
+  alteracao: ['Termo ou aditivo assinado', 'Atualizado no Domínio', 'eSocial S-2206 enviado'],
+};
 const ROT_DATA = { admissao: 'Início do trabalho', rescisao: 'Último dia trabalhado', afastamento: 'Início do afastamento', alteracao: 'Data da alteração', ferias: 'Início das férias' };
 
 let filtro = 'abertas';
@@ -30,7 +39,7 @@ export default async function movimentacoes(el, _r, vivo) {
     ${(filtro === 'abertas' ? abertas : L0).map((m) => { const d = m.prazo ? diasAte(m.prazo) : null; const aberta = m.status === 'pendente' || m.status === 'andamento';
       return `<tr class="lk" data-id="${m.id}"><td class="num">${dataBR(m.prazo)}${aberta && d !== null ? `<div class="small" style="color:${d < 0 ? 'var(--bad)' : d <= 3 ? 'var(--at-ink)' : 'var(--muted)'}">${d < 0 ? 'venceu há ' + -d + ' dias' : d === 0 ? 'vence hoje' : 'em ' + d + ' dias'}</div>` : ''}</td>
       <td><span class="pill ${m.tipo === 'rescisao' ? 'p-bad' : m.tipo === 'admissao' ? 'p-ok' : 'p-co'}">${TIPOS[m.tipo]}</span></td><td><b>${esc(m.nome || '')}</b></td>${S.empresa ? '' : `<td>${esc(nomeEmp(S.clientes.find((c) => c.id === m.cliente_id)))}</td>`}
-      <td class="num">${dataBR(m.data_evento)}</td><td><span class="pill ${m.status === 'concluida' ? 'p-ok' : m.status === 'cancelada' ? 'p-na' : 'p-at'}">${STATUS[m.status]}</span></td><td class="small muted">${esc(m.observacao || '')}</td></tr>`; }).join('') || `<tr><td colspan="7"><div class="vazio">${filtro === 'abertas' ? 'Nenhuma movimentação em aberto.' : 'Nenhuma movimentação registrada.'}</div></td></tr>`}
+      <td class="num">${dataBR(m.data_evento)}</td><td><span class="pill ${m.status === 'concluida' ? 'p-ok' : m.status === 'cancelada' ? 'p-na' : 'p-at'}">${STATUS[m.status]}</span>${CHECK[m.tipo] ? `<div class="small muted">${(CHECK[m.tipo] || []).filter((i) => m.detalhe?.check?.[i]).length}/${CHECK[m.tipo].length} do checklist</div>` : ''}</td><td class="small muted">${esc(m.observacao || '')}</td></tr>`; }).join('') || `<tr><td colspan="7"><div class="vazio">${filtro === 'abertas' ? 'Nenhuma movimentação em aberto.' : 'Nenhuma movimentação registrada.'}</div></td></tr>`}
     </tbody></table></div></div>`;
   el.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => { filtro = b.dataset.f; recarregarTela(); }));
   el.querySelector('#mNova').addEventListener('click', async () => { if (await form({ cliente_id: S.empresa || '' }, funcs)) recarregarTela(); });
@@ -47,19 +56,40 @@ function form(m, funcs) {
     <label class="f">Prazo<input type="date" name="prazo" value="${m.prazo || ''}"><span class="small muted" style="font-weight:400" id="prazoDica"></span></label>
     <label class="f">Situação<select name="status">${Object.entries(STATUS).map(([k, t]) => `<option value="${k}" ${(m.status || 'pendente') === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
     <span></span>
+    <div class="full form" id="mResc" style="padding:0"><label class="f">Tipo de rescisão<select name="tipo_rescisao">${Object.entries(TIPOS_RESCISAO).map(([k, t]) => `<option value="${k}" ${m.detalhe?.tipo_rescisao === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+      <label class="f">Aviso prévio<select name="aviso">${Object.entries(AVISOS).map(([k, t]) => `<option value="${k}" ${m.detalhe?.aviso === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label></div>
+    <fieldset class="full" style="border:1px solid var(--line);border-radius:10px;padding:10px 12px"><legend class="small" style="padding:0 6px;font-weight:600">Checklist</legend><div id="mCheck"></div></fieldset>
+    <div class="full barra-f" id="mAcoes"></div>
     <label class="f full">Observação<textarea name="observacao" style="min-height:60px">${esc(m.observacao || '')}</textarea></label>
     <p class="full small" id="mErro" style="color:var(--bad)"></p>
     <div class="acoes full" style="margin-top:0">${m.id ? '<button type="button" class="btn sec" id="mApaga" style="color:var(--bad);margin-right:auto">Excluir</button>' : ''}<button type="button" class="btn sec" data-fecha>Cancelar</button><button class="btn">Salvar</button></div></form>`, { largura: 640, aoAbrir: (md, fechar) => {
     const f = md.querySelector('#fMov');
     const auto = () => { md.querySelector('#rotData').textContent = ROT_DATA[f.tipo.value]; const p = prazoDe(f.tipo.value, f.data_evento.value); if (p && (!m.id || !f.prazo.dataset.mexeu)) f.prazo.value = p; md.querySelector('#prazoDica').textContent = { admissao: 'eSocial: até o dia anterior ao início', rescisao: 'pagamento em até 10 dias', afastamento: 'eSocial: até o dia 15 do mês seguinte', alteracao: 'eSocial: até o dia 15 do mês seguinte', ferias: 'pagamento até 2 dias antes' }[f.tipo.value]; };
     f.prazo.addEventListener('input', () => { f.prazo.dataset.mexeu = '1'; });
-    f.tipo.addEventListener('change', auto); f.data_evento.addEventListener('change', auto); auto();
+    const marcados = { ...(m.detalhe?.check || {}) };
+    const extras = () => {
+      const t = f.tipo.value; md.querySelector('#mResc').hidden = t !== 'rescisao';
+      md.querySelector('#mCheck').innerHTML = (CHECK[t] || []).map((it) => `<label class="chk small" style="margin:3px 0"><input type="checkbox" data-ck="${esc(it)}" ${marcados[it] ? 'checked' : ''}> ${esc(it)}</label>`).join('');
+      md.querySelectorAll('[data-ck]').forEach((c) => { c.onchange = () => { marcados[c.dataset.ck] = c.checked; }; });
+      const fu = funcs.find((y) => y.nome === f.nome.value && y.cliente_id === f.cliente_id.value);
+      const docs = { rescisao: [['aviso_previo_empregador', 'Imprimir aviso prévio'], ['aviso_previo_empregado', 'Imprimir pedido de demissão']], ferias: [['aviso_ferias', 'Imprimir aviso de férias']] }[t] || [];
+      md.querySelector('#mAcoes').innerHTML = (t === 'rescisao' || t === 'ferias' ? `<button type="button" class="btn sec mini" data-sim="${t}">Simular ${t === 'rescisao' ? 'verbas da rescisão' : 'valores das férias'}</button>` : '') + docs.map(([k, r]) => `<button type="button" class="btn sec mini" data-doc="${k}">${r}</button>`).join('') + (fu ? `<a class="btn sec mini" href="#/pessoal/colaborador/${fu.id}" data-fecha>Abrir ficha</a>` : '');
+      md.querySelectorAll('[data-sim]').forEach((b) => { b.onclick = async () => { const { simuladorPara } = await import('./dp-simulador.js'); simuladorPara(fu?.id || '', b.dataset.sim); fechar(null); irPara('#/pessoal/simulador'); }; });
+      md.querySelectorAll('[data-doc]').forEach((b) => { b.onclick = async () => {
+        const { imprimir } = await import('../modelos-doc.js'); const empresa = S.clientes.find((c) => c.id === f.cliente_id.value); const de = f.data_evento.value;
+        const fim = (() => { if (!de) return null; const x = new Date(de + 'T12:00:00'); x.setDate(x.getDate() + 29); return x.toLocaleDateString('sv-SE'); })();
+        const anos = fu?.admissao && de ? Math.floor((new Date(de) - new Date(fu.admissao)) / 31557600000) : 0;
+        imprimir(b.dataset.doc, { empresa, func: fu || { nome: f.nome.value }, dados: { data: new Date().toISOString().slice(0, 10), desligamento: de, aviso: f.aviso.value, diasAviso: Math.min(90, 30 + 3 * anos), inicio: de, fim, dias: 30, retorno: fim ? (() => { const x = new Date(fim + 'T12:00:00'); x.setDate(x.getDate() + 1); return x.toLocaleDateString('sv-SE'); })() : null, pagamento: prazoDe('ferias', de) } });
+      }; });
+    };
+    f.tipo.addEventListener('change', () => { auto(); extras(); }); f.data_evento.addEventListener('change', auto); f.nome.addEventListener('change', extras); f.cliente_id.addEventListener('change', extras); auto(); extras();
     f.addEventListener('submit', async (e) => {
       e.preventDefault(); const x = Object.fromEntries(new FormData(f));
       if (!x.cliente_id) return (md.querySelector('#mErro').textContent = 'Escolha a empresa.');
       const fu = funcs.find((y) => y.nome === x.nome && y.cliente_id === x.cliente_id);
+      const detalhe = { ...(m.detalhe || {}), check: marcados, ...(x.tipo === 'rescisao' ? { tipo_rescisao: x.tipo_rescisao, aviso: x.aviso } : {}) }; delete x.tipo_rescisao; delete x.aviso;
       try {
-        await db.salvarMovimentacao({ ...(m.id ? { id: m.id } : {}), ...x, funcionario_id: fu?.id || m.funcionario_id || null, prazo: x.prazo || null, observacao: x.observacao || null, concluida_em: x.status === 'concluida' ? new Date().toISOString() : null });
+        await db.salvarMovimentacao({ ...(m.id ? { id: m.id } : {}), ...x, detalhe, funcionario_id: fu?.id || m.funcionario_id || null, prazo: x.prazo || null, observacao: x.observacao || null, concluida_em: x.status === 'concluida' ? new Date().toISOString() : null });
         // rescisão concluída: o colaborador passa para desligado
         if (x.tipo === 'rescisao' && x.status === 'concluida' && fu && fu.situacao !== 'desligado') await db.salvarFuncionario({ id: fu.id, situacao: 'desligado', desligamento: x.data_evento });
         await db.registrar(TIPOS[x.tipo] + ': ' + STATUS[x.status], x.nome, x.cliente_id); aviso('Movimentação salva.'); fechar(true);

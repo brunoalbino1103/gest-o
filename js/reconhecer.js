@@ -17,7 +17,7 @@ export const TIPOS = {
   ferias_programacao: ['Programação de férias', 'dp'], folha_extrato: ['Folha de pagamento (extrato mensal)', 'dp'], folha_resumo: ['Resumo da folha', 'dp'],
   holerites: ['Recibos de pagamento (holerites)', 'dp'], liquidos: ['Relação de líquidos', 'dp'], guia_fgts: ['Guia do FGTS Digital', 'dp'], fgts_detalhe: ['Detalhe da guia do FGTS', 'dp'],
   guia_darf_dp: ['Guia DARF previdenciária (DCTFWeb)', 'dp'], recibo_dctfweb: ['Recibo da DCTFWeb', 'dp'], creditos_dctfweb: ['Relatório de créditos da DCTFWeb', 'dp'], extrato_dctfweb: ['Extrato de processamento da DCTFWeb', 'dp'],
-  guia_sindical: ['Contribuição sindical / assistencial', 'dp'], cartao_ponto: ['Cartões de ponto', 'dp'],
+  guia_sindical: ['Contribuição sindical / assistencial', 'dp'], cartao_ponto: ['Cartões de ponto', 'dp'], ficha_colaborador: ['Ficha do colaborador preenchida', 'dp'],
   guia_das: ['Guia do DAS (Simples Nacional)', 'fiscal'], guia_darf_fiscal: ['Guia DARF', 'fiscal'],
   nota: ['Nota fiscal (XML)', 'fiscal'], cancelamento: ['Cancelamento de nota (XML)', 'fiscal'], inutilizacao: ['Inutilização de numeração (XML)', 'fiscal'], evento: ['Evento de nota (XML)', 'fiscal'],
   extrato: ['Extrato bancário', 'contabil'], outro: ['Outro documento', null],
@@ -106,6 +106,8 @@ function resumoFolha(L) {
   const g = (re) => { const m = t.match(re); return m ? n(m[1]) : 0; };
   r.liquido = g(/L[íi]quido Geral:\s*([\d.,]+)/); r.fgts = g(/Valor do FGTS:\s*([\d.,]+)/); r.inss = g(/Total INSS:\s*([\d.,]+)/); r.irrf = g(/Valor Total do IRRF:\s*([\d.,]+)/);
   r.base_inss = g(/Base total:\s*([\d.,]+)/); r.base_fgts = g(/Base do FGTS:\s*([\d.,]+)/);
+  // deduções que reduzem o DARF previdenciário (a guia sai com INSS − salário-família − salário-maternidade + IRRF)
+  r.sal_familia = g(/\(-\)\s*Sal[áa]rio Fam[íi]lia:\s*([\d.,]+)/); r.sal_maternidade = g(/\(-\)\s*Sal[áa]rio Maternidade:\s*([\d.,]+)/);
   r.empregados = g(/No\.? Empregados:\s*(\d+)/); r.contribuintes = g(/No\.? Contribuintes:\s*(\d+)/); r.admissoes = g(/Admiss[õo]es:\s*(\d+)/); r.demitidos = g(/Demitido:\s*(\d+)/); r.ferias = g(/F[ée]rias:\s*(\d+)/);
   for (const l of L) { const m = l.match(/^(\d{2,5})\s+(.+?)\s+(\d+)\s+([\d:.,]+)\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s*\*?$/); if (m) r.rubricas.push({ codigo: m[1], descricao: m[2], pessoas: +m[3], referencia: m[4], valor: n(m[5]) }); }
   return r;
@@ -226,6 +228,13 @@ export async function reconhecer(arquivo) {
       if (x.tipo === 'cancelamento') return { ...base, tipo: 'cancelamento', departamento: 'fiscal', competencia: x.data?.slice(0, 7), cnpjs: [x.cnpj], dados: x };
       if (x.tipo === 'inutilizacao') return { ...base, tipo: 'inutilizacao', departamento: 'fiscal', competencia: x.data?.slice(0, 7), cnpjs: [x.cnpj], dados: x };
       return { ...base, tipo: 'evento', departamento: 'fiscal', competencia: x.data?.slice(0, 7), cnpjs: [x.cnpj], dados: x };
+    }
+    // ficha do colaborador preenchida (modelo gerado pelo sistema) ou outras planilhas
+    if (/^(xlsx|xls|csv|ods)$/.test(ext)) {
+      const { lerPlanilha } = await import('./leitor.js'); const { ehFicha, lerFicha } = await import('./ficha-modelo.js');
+      const linhas = await lerPlanilha(arquivo);
+      if (ehFicha(linhas)) { const fi = lerFicha(linhas); return { ...base, tipo: 'ficha_colaborador', departamento: 'dp', competencia: (fi.colaborador.admissao || new Date().toISOString()).slice(0, 7), cnpjs: fi.cnpj ? [fi.cnpj] : [], nomeEmpresa: fi.empresa, dados: fi }; }
+      return { ...base, departamento: depPeloNome(arquivo.name), competencia: classificar(arquivo.name).competencia, resumo: 'Planilha (guardada em Documentos)' };
     }
     if (ext === 'ofx') { const o = lerOFX(await arquivo.text()); return { ...base, tipo: 'extrato', departamento: 'contabil', competencia: o.fim?.slice(0, 7) || null, dados: o, cnpjs: [] }; }
     if (ext === 'pdf') {

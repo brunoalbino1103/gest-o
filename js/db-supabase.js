@@ -36,6 +36,9 @@ export default {
   // ---------- equipe ----------
   async meuPerfil() { return ok(await sb.from('perfis').select('*').eq('id', uid).maybeSingle()); },
   async perfis() { return ok(await sb.from('perfis').select('*').order('nome')); },
+  // ---------- portal do cliente ----------
+  async meuPortal() { return ok(await sb.from('portal_acessos').select('*').eq('usuario_id', uid).maybeSingle()); },
+  async portalMarcar(doc, campo) { ok(await sb.rpc('portal_marcar', { doc, campo })); },
   async salvarPerfil(p) { return ok(await sb.from('perfis').update(limpa({ nome: p.nome, departamento: p.departamento, ativo: p.ativo })).eq('id', p.id).select().single()); },
 
   // ---------- clientes ----------
@@ -98,7 +101,7 @@ export default {
     const caminho = `${meta.cliente_id || 'sem-cliente'}/${meta.competencia || 'sem-competencia'}/${crypto.randomUUID()}-${seguro}`;
     ok(await sb.storage.from(BUCKET).upload(caminho, arquivo, { contentType: arquivo.type || 'application/octet-stream' }));
     try {
-      return ok(await sb.from('documentos').insert(limpa({ ...meta, nome_arquivo: arquivo.name, caminho, tamanho: arquivo.size, mime: arquivo.type, enviado_por: uid })).select().single());
+      return ok(await sb.from('documentos').insert(limpa({ ...meta, nome_arquivo: arquivo.name, caminho, tamanho: arquivo.size, mime: arquivo.type, ...(meta.origem === 'cliente' ? { enviado_por: null, enviado_portal: uid, visivel_cliente: false } : { enviado_por: uid }) })).select().single());
     } catch (e) { await sb.storage.from(BUCKET).remove([caminho]); throw e; }
   },
   async documento(id) { return ok(await sb.from('documentos').select('*').eq('id', id).maybeSingle()); },
@@ -157,7 +160,10 @@ export default {
   async excluirMovimentacao(id) { ok(await sb.from('movimentacoes').delete().eq('id', id)); },
 
   // ---------- tabelas preenchidas pela importação automática ----------
-  async listar(tabela, filtros = {}) { return todas(() => { let q = sb.from(tabela).select('*'); Object.entries(filtros).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') q = q.eq(k, v); }); return q.order('id'); }); },
+  async listar(tabela, filtros = {}, ordem = 'id') { return todas(() => { let q = sb.from(tabela).select('*'); Object.entries(filtros).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') q = q.eq(k, v); }); return q.order(ordem); }); },
+  async inserir(tabela, linha) { return ok(await sb.from(tabela).insert({ ...limpa(linha), atualizado_em: new Date().toISOString() }).select().single()); },
+  async alterar(tabela, id, campos) { return ok(await sb.from(tabela).update({ ...limpa(campos), atualizado_em: new Date().toISOString() }).eq('id', id).select().single()); },
+  async apagar(tabela, id) { ok(await sb.from(tabela).delete().eq('id', id)); },
   async gravar(tabela, linhas, conflito) {
     const L = (Array.isArray(linhas) ? linhas : [linhas]).map((l) => ({ ...limpa(l), atualizado_em: new Date().toISOString() }));
     for (let i = 0; i < L.length; i += 300) ok(await sb.from(tabela).upsert(L.slice(i, i + 300), { onConflict: conflito }));

@@ -23,10 +23,10 @@ export const AREAS = {
   ] },
   pessoal: { nome: 'Departamento Pessoal', curto: 'Pessoal', cor: '#7A4FD6', ct: '#F1EBFC', dep: 'dp', grupos: [
     ['Geral', [['visao', 'Visão geral', T('dp-visao')]]],
-    ['Cadastros', [['empresas', 'Empresas', T('dp-empresas')], ['colaboradores', 'Colaboradores', T('funcionarios')]]],
-    ['Rotina do mês', [['fechamento', 'Fechamento do mês', T('dp-fechamento')], ['obrigacoes', 'Obrigações', T('departamento')], ['ponto', 'Ponto e horas extras', T('dp-ponto')], ['vrvt', 'VR/VT', T('dp-vrvt')]]],
-    ['Acompanhar', [['ferias', 'Férias', T('dp-ferias')], ['experiencia', 'Experiência', T('dp-experiencia')], ['movimentacoes', 'Admissões e rescisões', T('dp-movimentacoes')]]],
-    ['Arquivos', [['importar', 'Importar arquivos', T('importador')], ['documentos', 'Documentos', T('documentos')]]],
+    ['Cadastros', [['empresas', 'Empresas', T('dp-empresas')], ['colaboradores', 'Colaboradores', T('funcionarios')], ['colaborador', 'Ficha do colaborador', T('dp-colaborador'), true]]],
+    ['Rotina do mês', [['fechamento', 'Fechamento do mês', T('dp-fechamento')], ['conferencia', 'Conferência', T('dp-conferencia')],['obrigacoes', 'Obrigações', T('departamento')], ['ponto', 'Ponto e horas extras', T('dp-ponto')], ['vrvt', 'VR/VT', T('dp-vrvt')]]],
+    ['Acompanhar', [['ferias', 'Férias', T('dp-ferias')], ['experiencia', 'Experiência', T('dp-experiencia')], ['movimentacoes', 'Admissões e rescisões', T('dp-movimentacoes')], ['simulador', 'Simulador', T('dp-simulador')], ['sst', 'Saúde e segurança', T('dp-sst')], ['indicadores', 'Indicadores', T('dp-indicadores')]]],
+    ['Arquivos', [['importar', 'Importar arquivos', T('importador')], ['documentos', 'Documentos', T('documentos')], ['portal', 'Portal do cliente', T('portal-equipe')]]],
   ] },
   contabil: { nome: 'Contabilidade', curto: 'Contábil', cor: '#0E8A7E', ct: '#E3F4F2', dep: 'contabil', grupos: [
     ['Geral', [['visao', 'Visão geral', T('departamento')]]],
@@ -35,6 +35,7 @@ export const AREAS = {
   ] },
   cadastros: { nome: 'Cadastros e configurações', curto: 'Cadastros', cor: '#475467', ct: '#F2F4F7', dep: null, grupos: [
     ['Cadastros', [['clientes', 'Empresas (clientes)', T('clientes')], ['empresa', 'Ficha da empresa', T('cliente'), true]]],
+    ['Clientes', [['portal', 'Portal do cliente', T('portal-equipe')]]],
     ['Regras e equipe', [['configuracoes', 'Obrigações, feriados e equipe', T('config')]]],
   ] },
 };
@@ -149,7 +150,7 @@ async function rota() {
   const aba = abaDe(ar, aba0) ? aba0 : AREAS[ar].grupos[0][1][0][0];
   if (areaMontada !== ar) montarArea(ar);
   if ($('#selEmp')) $('#selEmp').innerHTML = opcoesEmpresa();
-  $$('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.aba === aba));
+  $$('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.aba === aba || (aba === 'colaborador' && b.dataset.aba === 'colaboradores') || (aba === 'empresa' && b.dataset.aba === 'clientes')));
   const emp = empresaAtual();
   $('#tbSub').textContent = ar === 'cadastros' ? NOME_ESCRITORIO : (emp ? (emp.nome_fantasia || emp.razao_social) : 'Todas as empresas') + ' · ' + nomeComp(S.comp, true);
   const velho = $('#conteudo'); const el = velho.cloneNode(false); velho.replaceWith(el); const minha = ++rodando;
@@ -171,7 +172,12 @@ export const recarregarTela = () => rota();
 async function iniciar() {
   const u = await db.usuario(); if (!u) return telaLogin();
   try { await carregarBase(); } catch (e) { return telaLogin('Erro ao carregar os dados: ' + e.message); }
-  if (!S.perfil) { await db.sair(); return telaLogin('Seu usuário ainda não está liberado. Peça ao administrador.'); }
+  if (!S.perfil) {
+    // cliente do escritório: abre só o portal da empresa dele
+    const acesso = await db.meuPortal().catch(() => null);
+    if (acesso && acesso.ativo !== false) { const { telaPortal } = await import('./telas/portal.js'); return telaPortal(acesso); }
+    await db.sair(); return telaLogin('Seu usuário ainda não está liberado. Peça ao administrador.');
+  }
   if (!S.perfil.ativo) { await db.sair(); return telaLogin('Seu usuário está desativado. Fale com o administrador.'); }
   areaMontada = null; rota();
 }

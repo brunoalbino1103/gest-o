@@ -102,3 +102,16 @@ ferramentas/servidor-local.ps1   servidor para testar no computador
 - Contabilidade: conciliação a partir do OFX.
 - Envio de guias e holerites por e-mail ao cliente direto do sistema.
 - Portal para o cliente mandar os documentos sozinho.
+
+## Atualizações do banco (rodar uma vez, na ordem)
+No Supabase: SQL Editor → New query → cole o conteúdo do arquivo → Run.
+1. `supabase/atualizacao-01-pessoal.sql` (já rodado)
+2. `supabase/atualizacao-02-importacao.sql` (já rodado)
+3. `supabase/atualizacao-03-dp-completo.sql` — ficha completa, eventos, SST, tabelas INSS/IRRF
+4. `supabase/atualizacao-04-portal.sql` — portal do cliente
+
+## Portal do cliente
+1. No sistema: ⚙ Cadastros → Portal do cliente → Acessos → + Acesso (e-mail do cliente + empresa).
+2. No Supabase: Authentication → Users → Add user, com o mesmo e-mail e uma senha (marque Auto Confirm User).
+3. O cliente entra no mesmo endereço do sistema e vê só a empresa dele.
+Um e-mail cadastrado no portal nunca vira usuário da equipe. Cadastre o acesso ANTES de criar o usuário.

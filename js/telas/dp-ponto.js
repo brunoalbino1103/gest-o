@@ -5,6 +5,24 @@ import { S } from '../estado.js';
 import { topo, recarregarTela } from '../app.js';
 import { analisar, hm, hmin, CLASSE, TIPO_OC, STATUS_RELOGIO } from '../ponto.js';
 import { empresasDP, nomeEmp, escolhaEmpresa } from './dp-comum.js';
+import { modal, aviso } from '../util.js';
+
+// Códigos das rubricas no Domínio desta empresa (guardados no cadastro do DP)
+function configurarRubricas(emp, cfg) {
+  const r = cfg.rubricas || {};
+  const ITENS = [['he60', 'Horas extras 60% (ou 50%)'], ['he100', 'Horas extras 100%'], ['atraso', 'Atrasos / saídas antecipadas (horas)'], ['falta', 'Faltas (horas)'], ['dsr', 'DSR descontado (horas)'], ['adnot', 'Adicional noturno (horas)'], ['bcred', 'Banco de horas: crédito (se lança na folha)'], ['bdeb', 'Banco de horas: débito (se lança na folha)']];
+  return modal('Rubricas do Domínio · ' + nomeEmp(emp), `<form class="form" id="fRub">
+    <p class="full small muted mt0">Informe o código de cada rubrica no Domínio desta empresa. Deixe em branco o que não é lançado. Fica guardado para os próximos meses.</p>
+    ${ITENS.map(([k, t]) => `<label class="f">${t}<input name="${k}" value="${r[k] || ''}" inputmode="numeric" placeholder="código"></label>`).join('')}
+    <label class="f">Separador do arquivo<select name="separador"><option value=";" ${(r.separador || ';') === ';' ? 'selected' : ''}>ponto e vírgula (;)</option><option value="," ${r.separador === ',' ? 'selected' : ''}>vírgula (,)</option><option value="|" ${r.separador === '|' ? 'selected' : ''}>barra (|)</option></select></label>
+    <p class="full small muted">Arquivo: <b>código do empregado; rubrica; competência; horas em decimal</b>. Na primeira vez, confira o layout de importação de lançamentos do Domínio e me avise se precisar de outra ordem.</p>
+    <div class="acoes full" style="margin-top:0"><button type="button" class="btn sec" data-fecha>Cancelar</button><button class="btn">Salvar e exportar</button></div></form>`, { largura: 680, aoAbrir: (m, fechar) => {
+    m.querySelector('#fRub').addEventListener('submit', async (e) => {
+      e.preventDefault(); const d = Object.fromEntries(new FormData(e.target)); Object.keys(d).forEach((k) => { d[k] = String(d[k]).trim(); });
+      try { await db.salvarDpEmpresa({ ...cfg, cliente_id: emp.id, rubricas: d }); fechar(d); } catch (er) { aviso(er.message, 'erro'); }
+    });
+  } });
+}
 
 const ABAS = [['geral', 'Visão geral'], ['ocorrencias', 'Ocorrências'], ['diaadia', 'Dia a dia'], ['cartao', 'Cartão'], ['fechamento', 'Fechamento']];
 let aba = 'geral', tipoOc = '', pessoa = '';
@@ -92,7 +110,7 @@ export default async function ponto(el, _r, vivo) {
   }
 
   if (aba === 'fechamento') {
-    corpo = `<div class="card"><div class="card-h"><div><h2>Fechamento do ponto · ${nomeComp(S.comp)}</h2><p class="small muted">Totais do relógio para lançar na folha.</p></div><button class="btn sec mini" id="pExp">Exportar (Excel)</button></div>
+    corpo = `<div class="card"><div class="card-h"><div><h2>Fechamento do ponto · ${nomeComp(S.comp)}</h2><p class="small muted">Totais do relógio para lançar na folha.</p></div><div class="barra-f"><button class="btn sec mini" id="pExp">Exportar (Excel)</button><button class="btn mini" id="pDom">Exportar para o Domínio</button></div></div>
       <div class="tw"><table class="t"><thead><tr><th>Colaborador</th><th class="r">Normais</th><th class="r">Faltas (h)</th><th class="r">Atrasos</th><th class="r">Extra 60%</th><th class="r">Extra 100%</th><th class="r">Banco: crédito</th><th class="r">Banco: débito</th><th class="r">Banco: saldo</th><th class="r">DSR descontado</th></tr></thead><tbody>
       ${P.map(({ c, a }) => `<tr><td><b>${esc(nomeF(c.funcionario_id))}</b></td><td class="r num">${h0(a.tot.normais)}</td><td class="r num">${h0(a.tot.faltasHoras)}</td><td class="r num">${a.tot.atrasoMin ? hmin(a.tot.atrasoMin) : '—'}</td><td class="r num">${h0(a.tot.ex60)}</td><td class="r num">${h0(a.tot.ex100)}</td><td class="r num">${h0(a.tot.bcred)}</td><td class="r num">${h0(a.tot.bdeb)}</td><td class="r num"><b>${a.tot.bsaldo ? hm(a.tot.bsaldo) : '—'}</b></td><td class="r num">${h0(a.tot.dsrdeb)}</td></tr>`).join('')}
       <tr><td><b>Total</b></td><td class="r num"><b>${h0(T.normais)}</b></td><td class="r num"><b>${h0(T.faltasHoras)}</b></td><td class="r num"><b>${T.atrasoMin ? hmin(T.atrasoMin) : '—'}</b></td><td class="r num"><b>${h0(T.ex60)}</b></td><td class="r num"><b>${h0(T.ex100)}</b></td><td class="r num"><b>${h0(T.bcred)}</b></td><td class="r num"><b>${h0(T.bdeb)}</b></td><td></td><td class="r num"><b>${h0(T.dsrdeb)}</b></td></tr>
@@ -105,6 +123,19 @@ export default async function ponto(el, _r, vivo) {
   el.querySelectorAll('[data-ir]').forEach((b) => b.addEventListener('click', () => { tipoOc = b.dataset.ir; aba = 'ocorrencias'; recarregarTela(); }));
   el.querySelectorAll('[data-pessoa]').forEach((b) => b.addEventListener('click', () => { pessoa = b.dataset.pessoa; aba = 'cartao'; recarregarTela(); }));
   el.querySelector('#pPessoa')?.addEventListener('change', (e) => { pessoa = e.target.value; recarregarTela(); });
+  el.querySelector('#pDom')?.addEventListener('click', async () => {
+    const cfg = (await db.dpEmpresas()).find((c) => c.cliente_id === S.empresa) || { cliente_id: S.empresa };
+    const rub = await configurarRubricas(emp, cfg); if (!rub) return;
+    // uma linha por colaborador e rubrica com valor: código do empregado; rubrica; competência; horas (decimal)
+    const semCod = P.filter(({ f }) => !f?.codigo).map(({ c }) => nomeF(c.funcionario_id));
+    const dec = (m) => (m / 60).toFixed(2).replace('.', ',');
+    const itens = [['he60', 'ex60'], ['he100', 'ex100'], ['atraso', 'atrasoMin'], ['falta', 'faltasHoras'], ['dsr', 'dsrdeb'], ['adnot', 'adnot'], ['bcred', 'bcred'], ['bdeb', 'bdeb']];
+    const linhas = [];
+    P.forEach(({ f, a }) => itens.forEach(([k, campo]) => { const v = a.tot[campo] || 0; if (v > 0 && rub[k]) linhas.push([f?.codigo || '', rub[k], S.comp.slice(5) + '/' + S.comp.slice(0, 4), dec(v)].join(rub.separador || ';')); }));
+    if (!linhas.length) return aviso('Nada para exportar: nenhuma rubrica configurada tem valor neste mês.', 'erro');
+    baixarArquivo(`dominio_ponto_${emp.codigo || 'empresa'}_${S.comp}.txt`, linhas.join('\r\n'), 'text/plain;charset=windows-1252');
+    aviso(semCod.length ? `Exportado. Atenção: sem código na folha: ${semCod.join(', ')}.` : `Exportado: ${linhas.length} lançamento(s).`, semCod.length ? 'erro' : 'ok');
+  });
   el.querySelector('#pExp')?.addEventListener('click', () => {
     const rows = [['Colaborador', 'Normais', 'Faltas (h)', 'Atrasos (min)', 'Extra 60%', 'Extra 100%', 'Banco crédito', 'Banco débito', 'Banco saldo', 'DSR descontado']].concat(P.map(({ c, a }) => [nomeF(c.funcionario_id), hm(a.tot.normais), hm(a.tot.faltasHoras), a.tot.atrasoMin, hm(a.tot.ex60), hm(a.tot.ex100), hm(a.tot.bcred), hm(a.tot.bdeb), a.tot.bsaldo ? hm(a.tot.bsaldo) : '', hm(a.tot.dsrdeb)]));
     baixarArquivo(`ponto_${nomeEmp(emp).replace(/\W+/g, '_')}_${S.comp}.csv`, '﻿' + rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\r\n'));

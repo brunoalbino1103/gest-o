@@ -2,6 +2,7 @@
 import db from './db.js';
 import { compPadrao } from './util.js';
 import { definirFeriadosExtras } from './regras.js';
+import { usarTabelas } from './calculos.js';
 
 const COMP_KEY = 'contabil_competencia';
 let compSalva = null; try { compSalva = sessionStorage.getItem(COMP_KEY); } catch (e) { /* sem storage */ }
@@ -16,6 +17,8 @@ export async function carregarBase() {
   let fer;
   [S.perfil, S.perfis, S.clientes, S.obrigacoes, fer] = await Promise.all([db.meuPerfil(), db.perfis(), db.clientes(), db.obrigacoes(), db.feriados().catch(() => [])]);
   S.feriados = fer; definirFeriadosExtras(fer);
+  // tabelas de INSS/IRRF do ano (Configurações); sem cadastro, valem as padrão
+  try { const par = await db.listar('parametros', {}, 'chave'); S.parametros = par; usarTabelas(par.find((p) => p.chave === 'tabelas')?.valor); } catch (e) { S.parametros = []; }
 }
 export async function recarregarFeriados() { S.feriados = await db.feriados(); definirFeriadosExtras(S.feriados); }
 export async function recarregarClientes() { S.clientes = await db.clientes(); }

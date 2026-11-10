@@ -6,7 +6,7 @@ import { topo } from '../app.js';
 import { experiencia, situacaoFerias, nivelFerias, ITENS_FECHAMENTO, tipoFechamento, empresasDP, nomeEmp, PORTES, ATIVIDADES } from './dp-comum.js';
 
 export default async function visaoDP(el, _r, vivo) {
-  const [funcs, marcs, movs, docs, cfgs, tarefas] = await Promise.all([db.funcionarios(), db.feriasMarcacoes(), db.movimentacoes(), db.documentos({ competencia: S.comp, departamento: 'dp' }), db.dpEmpresas(), tarefasDa(S.comp)]);
+  const [funcs, marcs, movs, docs, cfgs, tarefas, evs, edocs, peds] = await Promise.all([db.funcionarios(), db.feriasMarcacoes(), db.movimentacoes(), db.documentos({ competencia: S.comp, departamento: 'dp' }), db.dpEmpresas(), tarefasDa(S.comp), db.listar('funcionario_eventos').catch(() => []), db.listar('empresa_documentos').catch(() => []), db.listar('solicitacoes', { status: 'nova' }).catch(() => [])]);
   if (!vivo()) return;
   const daEmp = (id) => !S.empresa || id === S.empresa;
   const emps = empresasDP().filter((c) => c.tem_funcionarios && daEmp(c.id));
@@ -25,6 +25,10 @@ export default async function visaoDP(el, _r, vivo) {
   // obrigações do DP
   const obr = tarefas.filter((t) => t.departamento === 'dp' && daEmp(t.cliente_id));
   const obrAt = obr.filter(atrasada);
+  // SST: último ASO de cada ativo e programas (PGR, PCMSO...) vencendo em 30 dias
+  const ultAso = (fid) => evs.filter((e) => e.tipo === 'aso' && e.funcionario_id === fid).sort((a, b) => b.data.localeCompare(a.data))[0];
+  const asoAlert = ativos.map((f) => ({ f, u: ultAso(f.id) })).filter((x) => x.u?.vencimento && diasAte(x.u.vencimento) <= 30);
+  const docAlert = edocs.filter((d) => daEmp(d.cliente_id) && d.validade && diasAte(d.validade) <= 30);
   const emp = S.empresa ? S.clientes.find((c) => c.id === S.empresa) : null; const cfg = emp ? cfgs.find((c) => c.cliente_id === emp.id) : null;
 
   topo('Visão geral', `${emp ? nomeEmp(emp) : 'Todas as empresas'} · ${nomeComp(S.comp)}`);
@@ -33,6 +37,9 @@ export default async function visaoDP(el, _r, vivo) {
     ...ferAlert.map((x) => ({ ord: x.p.diasLimite, tag: x.n === 'vencida' ? 'bad' : 'at', t: `Férias ${x.n === 'vencida' ? 'vencidas' : 'a marcar'}: ${x.f.nome}`, s: `${nomeC(x.f.cliente_id)} · limite para sair ${dataBR(x.p.limite)}`, href: '#/pessoal/ferias' })),
     ...exp.map(({ f, x }) => ({ ord: x.dias, tag: x.dias <= 7 ? 'bad' : 'at', t: `Experiência: ${f.nome}`, s: `${nomeC(f.cliente_id)} · ${x.fase === '1º período' ? 'prorrogar ou desligar' : 'efetivar ou desligar'} até ${dataBR(x.prox)}`, href: '#/pessoal/experiencia' })),
     ...movAb.filter((m) => m.prazo).map((m) => ({ ord: diasAte(m.prazo), tag: diasAte(m.prazo) <= 3 ? 'bad' : 'at', t: `${{ admissao: 'Admissão', rescisao: 'Rescisão', afastamento: 'Afastamento', alteracao: 'Alteração', ferias: 'Férias' }[m.tipo]}: ${m.nome}`, s: `${nomeC(m.cliente_id)} · prazo ${dataBR(m.prazo)}`, href: '#/pessoal/movimentacoes' })),
+    ...peds.filter((p) => daEmp(p.cliente_id)).map((p) => ({ ord: diasAte(p.criado_em.slice(0, 10)), tag: 'bad', t: `Pedido do cliente: ${{ admissao: 'admissão', rescisao: 'desligamento', ferias: 'férias', alteracao: 'alteração', afastamento: 'afastamento', outro: 'outro assunto' }[p.tipo] || p.tipo}`, s: `${nomeC(p.cliente_id)} · ${p.titulo || ''} · recebido ${dataBR(p.criado_em)}`, href: '#/pessoal/portal' })),
+    ...asoAlert.map(({ f, u }) => ({ ord: diasAte(u.vencimento), tag: diasAte(u.vencimento) < 0 ? 'bad' : 'at', t: `ASO ${diasAte(u.vencimento) < 0 ? 'vencido' : 'vencendo'}: ${f.nome}`, s: `${nomeC(f.cliente_id)} · próximo exame ${dataBR(u.vencimento)}`, href: '#/pessoal/sst' })),
+    ...docAlert.map((d) => ({ ord: diasAte(d.validade), tag: diasAte(d.validade) < 0 ? 'bad' : 'at', t: `Programa de SST ${diasAte(d.validade) < 0 ? 'vencido' : 'vencendo'}: ${d.tipo.toUpperCase()}`, s: `${nomeC(d.cliente_id)} · validade ${dataBR(d.validade)}`, href: '#/pessoal/sst' })),
     ...obrAt.map((t) => ({ ord: diasAte(t.vencimento), tag: 'bad', t: `${t.titulo} atrasada`, s: `${nomeC(t.cliente_id)} · venceu ${dataBR(t.vencimento)}`, href: '#/pessoal/obrigacoes' })),
   ].sort((a, b) => a.ord - b.ord);
 

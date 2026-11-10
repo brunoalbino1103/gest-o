@@ -2,6 +2,7 @@
 import db from '../db.js';
 import { esc, DEPS, REGIMES, nomeComp, aviso, modal, confirmar, dataBR, somaMes } from '../util.js';
 import { S, recarregarObrigacoes, recarregarFeriados, eAdmin, limparCacheTarefas } from '../estado.js';
+import { tabelas } from '../calculos.js';
 import { descreverPrazo, descreverPeriodo, valeNaCompetencia, vencimentoDe, PERIODOS, TIPOS_DIA, AJUSTES } from '../regras.js';
 import { topo, recarregarTela } from '../app.js';
 
@@ -28,6 +29,9 @@ export default async function config(el) {
      ${S.perfis.map((p) => `<tr><td><b style="font-weight:600">${esc(p.nome)}</b>${p.id === S.perfil.id ? ' <span class="pill p-co">você</span>' : ''}</td><td class="small">${esc(p.email || '')}</td><td>${DEPN[p.departamento]}</td><td>${p.ativo ? '<span class="pill p-ok">Ativo</span>' : '<span class="pill p-na">Sem acesso</span>'}</td>${adm ? `<td><button class="btn sec mini" data-pf="${p.id}">Editar</button></td>` : ''}</tr>`).join('')}
      </tbody></table></div></div>
 
+   <div class="card"><div class="card-h"><div><h2>Tabelas de INSS e IRRF (simulador do DP)</h2><p class="small muted">Usadas nas estimativas de rescisão, férias e custo. Atualize quando sair a tabela do ano. O cálculo oficial continua sendo o do Domínio.</p></div>${adm ? '<button class="btn sec" id="tabEd">Editar tabelas</button>' : ''}</div>
+     <div class="card-b small" id="tabVer"></div></div>
+
    <div class="card"><div class="card-h"><h2>Minha conta</h2></div><div class="card-b">
      <form id="fSenha" class="barra-f"><label class="sr" for="nSenha">Nova senha</label><input type="password" id="nSenha" placeholder="Nova senha (mínimo 8 caracteres)" minlength="8" autocomplete="new-password" style="max-width:300px"><button class="btn sec">Trocar senha</button></form>
      ${db.demo ? '<div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="small muted">Modo demonstração: apaga os dados de teste e começa do zero.</span><button class="btn sec" id="dReset">Restaurar dados de teste</button></div>' : ''}
@@ -52,6 +56,10 @@ export default async function config(el) {
     e.preventDefault();
     try { await db.salvarFeriado({ data: $c('#ferData').value, nome: $c('#ferNome').value.trim() }); await recarregarFeriados(); aviso('Feriado incluído. Vale para as tarefas geradas daqui em diante.'); recarregarTela(); } catch (er) { aviso(er.message, 'erro'); }
   });
+  // tabelas do simulador
+  const T = tabelas(); const pct = (v) => (v * 100).toFixed(2).replace('.', ',').replace(/,00$/, '') + '%';
+  $c('#tabVer').innerHTML = `<b>Ano ${T.ano}</b> · salário mínimo ${brlC(T.salario_minimo)}<br>INSS: ${T.inss.map(([a, p]) => `até ${brlC(a)} ${pct(p)}`).join(' · ')}<br>IRRF: ${T.irrf.map(([a, p, d]) => `${a === Infinity ? 'acima' : 'até ' + brlC(a)} ${pct(p)}${d ? ' (deduz ' + brlC(d) + ')' : ''}`).join(' · ')} · dependente ${brlC(T.irrf_dependente)}${T.irrf_reducao_2026 ? ' · com a isenção até R$ 5.000 (Lei 15.270/2025)' : ''}`;
+  $c('#tabEd')?.addEventListener('click', async () => { if (await editarTabelas(T)) { aviso('Tabelas salvas.'); location.reload(); } });
   $c('#fSenha').addEventListener('submit', async (e) => {
     e.preventDefault(); const s = $c('#nSenha').value; if (s.length < 8) return aviso('A senha precisa ter pelo menos 8 caracteres.', 'erro');
     try { await db.trocarSenha(s); $c('#nSenha').value = ''; aviso('Senha trocada.'); } catch (er) { aviso(er.message, 'erro'); }
@@ -97,6 +105,28 @@ function formObrigacao(o) {
     m.querySelector('#oApaga')?.addEventListener('click', async () => {
       if (!(await confirmar('Excluir obrigação', `Excluir "${o.nome}"? As tarefas já criadas continuam; só não serão geradas nos próximos meses. Se quiser só pausar, desmarque "Ativa".`, 'Excluir'))) return;
       try { await db.excluirObrigacao(o.id); await recarregarObrigacoes(); aviso('Obrigação excluída.'); fechar(true); } catch (er) { aviso(er.message, 'erro'); }
+    });
+  } });
+}
+
+const brlC = (v) => (+v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+function editarTabelas(T) {
+  const num = (v) => String(v).replace('.', ',');
+  const lin = (pre, i, a, p, d) => `<div class="barra-f" style="margin-bottom:6px"><span class="small" style="width:70px">Faixa ${i + 1}</span><label class="small">até R$ <input name="${pre}a${i}" value="${a === Infinity ? '' : num(a)}" placeholder="${a === Infinity ? 'acima' : ''}" style="width:110px"></label><label class="small">alíquota % <input name="${pre}p${i}" value="${num(+(p * 100).toFixed(2))}" style="width:70px"></label>${d !== undefined ? `<label class="small">deduzir R$ <input name="${pre}d${i}" value="${num(d)}" style="width:90px"></label>` : ''}</div>`;
+  return modal('Tabelas de INSS e IRRF', `<form id="fTab">
+    <div class="form"><label class="f">Ano<input name="ano" value="${T.ano}"></label><label class="f">Salário mínimo (R$)<input name="salario_minimo" value="${num(T.salario_minimo)}"></label></div>
+    <div class="secao-t" style="padding:12px 0 6px">INSS do empregado (progressivo)</div>${T.inss.map(([a, p], i) => lin('i', i, a, p)).join('')}
+    <div class="secao-t" style="padding:12px 0 6px">IRRF mensal</div>${T.irrf.map(([a, p, d], i) => lin('r', i, a, p, d)).join('')}
+    <div class="form" style="margin-top:8px"><label class="f">Dedução por dependente (R$)<input name="irrf_dependente" value="${num(T.irrf_dependente)}"></label><label class="f">Desconto simplificado (R$)<input name="irrf_desconto_simplificado" value="${num(T.irrf_desconto_simplificado)}"></label>
+    <label class="chk full"><input type="checkbox" name="irrf_reducao_2026" ${T.irrf_reducao_2026 ? 'checked' : ''}> Aplicar a isenção até R$ 5.000 e a redução até R$ 7.350 (a partir de 2026)</label></div>
+    <div class="acoes"><button type="button" class="btn sec" data-fecha>Cancelar</button><button type="button" class="btn sec" id="tabPadrao">Voltar ao padrão</button><button class="btn">Salvar</button></div></form>`, { largura: 720, aoAbrir: (m, fechar) => {
+    const fm = m.querySelector('#fTab'); const v = (n) => parseFloat(String(fm[n]?.value || '').replace(/\./g, '').replace(',', '.'));
+    m.querySelector('#tabPadrao').onclick = async () => { await db.gravar('parametros', { chave: 'tabelas', valor: null }, 'chave'); fechar(true); };
+    fm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const t = { ano: +fm.ano.value || T.ano, salario_minimo: v('salario_minimo'), inss: T.inss.map((_, i) => [v('ia' + i), v('ip' + i) / 100]).filter(([a]) => a > 0),
+        irrf: T.irrf.map((_, i) => [Number.isFinite(v('ra' + i)) ? v('ra' + i) : Infinity, v('rp' + i) / 100, v('rd' + i) || 0]), irrf_dependente: v('irrf_dependente'), irrf_desconto_simplificado: v('irrf_desconto_simplificado'), irrf_reducao_2026: fm.irrf_reducao_2026.checked };
+      try { await db.gravar('parametros', { chave: 'tabelas', valor: t }, 'chave'); fechar(true); } catch (er) { aviso(er.message, 'erro'); }
     });
   } });
 }

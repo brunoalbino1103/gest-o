@@ -157,9 +157,11 @@ const filtra = (l, f) => l.filter((x) => Object.entries(f).every(([k, v]) => v =
 
 export default {
   demo: true,
-  async usuario() { carrega(); const p = D.perfis.find((p) => p.id === D.logado); return p ? { id: p.id, email: p.email } : null; },
+  async usuario() { carrega(); const a = (D.portal_acessos || []).find((x) => 'portal:' + x.id === D.logado); if (a) return { id: D.logado, email: a.email }; const p = D.perfis.find((p) => p.id === D.logado); return p ? { id: p.id, email: p.email } : null; },
+  async meuPortal() { carrega(); return copia((D.portal_acessos || []).find((x) => 'portal:' + x.id === D.logado) || null); },
+  async portalMarcar(did, campo) { carrega(); const d = D.documentos.find((x) => x.id === did); if (!d) return; d.visto_em ||= new Date().toISOString(); if (campo === 'pago') d.pago_em = new Date().toISOString(); grava(); },
   aoMudarSessao(cb) { ouvinte = cb; },
-  async entrar(email) { carrega(); await espera(); const p = D.perfis.find((p) => p.email === String(email).trim().toLowerCase()) || D.perfis[0]; D.logado = p.id; grava(); ouvinte && ouvinte({ id: p.id, email: p.email }); },
+  async entrar(email) { carrega(); await espera(); const a = (D.portal_acessos || []).find((x) => x.ativo !== false && x.email.toLowerCase() === String(email).trim().toLowerCase()); if (a) { D.logado = 'portal:' + a.id; grava(); ouvinte && ouvinte({ id: D.logado, email: a.email }); return; } const p = D.perfis.find((p) => p.email === String(email).trim().toLowerCase()) || D.perfis[0]; D.logado = p.id; grava(); ouvinte && ouvinte({ id: p.id, email: p.email }); },
   async sair() { D.logado = null; grava(); ouvinte && ouvinte(null); },
   async trocarSenha() { await espera(); },
   async esqueciSenha() { await espera(); },
@@ -202,7 +204,7 @@ export default {
   async enviarDocumento(arquivo, meta) {
     const caminho = `${meta.cliente_id || 'sem-cliente'}/${meta.competencia || 'sem-competencia'}/${id()}-${arquivo.name}`;
     await idbPut(caminho, arquivo);
-    const d = { id: id(), ...meta, nome_arquivo: arquivo.name, caminho, tamanho: arquivo.size, mime: arquivo.type, enviado_por: D.logado, enviado_em: new Date().toISOString() };
+    const d = { id: id(), ...meta, nome_arquivo: arquivo.name, caminho, tamanho: arquivo.size, mime: arquivo.type, enviado_por: meta.origem === 'cliente' ? null : D.logado, enviado_em: new Date().toISOString() };
     D.documentos.push(d); grava(); return copia(d);
   },
   async documento(did) { carrega(); return copia(D.documentos.find((d) => d.id === did) || null); },
@@ -239,6 +241,9 @@ export default {
   async excluirMovimentacao(mid) { D.movimentacoes = (D.movimentacoes || []).filter((x) => x.id !== mid); grava(); },
 
   async listar(tabela, filtros = {}) { carrega(); return copia(filtra(D[tabela] || [], filtros)); },
+  async inserir(tabela, linha) { carrega(); D[tabela] ||= []; const n = { id: id(), ...linha, atualizado_em: new Date().toISOString() }; D[tabela].push(n); grava(); return copia(n); },
+  async alterar(tabela, lid, campos) { carrega(); const x = (D[tabela] || []).find((y) => y.id === lid); Object.assign(x, campos, { atualizado_em: new Date().toISOString() }); grava(); return copia(x); },
+  async apagar(tabela, lid) { carrega(); D[tabela] = (D[tabela] || []).filter((y) => y.id !== lid); grava(); },
   async gravar(tabela, linhas, conflito) {
     carrega(); D[tabela] ||= []; const ch = conflito.split(',');
     for (const l of (Array.isArray(linhas) ? linhas : [linhas])) {

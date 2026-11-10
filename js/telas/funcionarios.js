@@ -2,7 +2,7 @@
 import db from '../db.js';
 import { esc, dataBR, semAcento, soDigitos, aviso, modal, confirmar, baixarArquivo } from '../util.js';
 import { S, nomeCliente } from '../estado.js';
-import { topo, recarregarTela } from '../app.js';
+import { topo, recarregarTela, irPara } from '../app.js';
 import { lerPlanilha } from '../leitor.js';
 
 let filtroCli = '', busca = '', sit = 'ativos';
@@ -17,7 +17,7 @@ export default async function funcionarios(el, _p, vivo) {
       <label class="sr" for="fuCli">Cliente</label><select id="fuCli" hidden><option value="">Todos os clientes</option>${clis.map((c) => `<option value="${c.id}" ${filtroCli === c.id ? 'selected' : ''}>${esc(c.nome_fantasia || c.razao_social)}</option>`).join('')}</select>
       <label class="sr" for="fuBusca">Buscar</label><input type="search" id="fuBusca" placeholder="Nome, cargo ou setor" value="${esc(busca)}">
       <div class="seg" role="group" aria-label="Situação">${[['ativos', 'Ativos'], ['desligados', 'Desligados'], ['todos', 'Todos']].map(([k, t]) => `<button data-sit="${k}" aria-pressed="${sit === k}">${t}</button>`).join('')}</div></div>
-     <div class="barra-f"><a class="btn sec" id="fuFerias" href="#/pessoal/ferias">Ver férias</a><button class="btn sec" id="fuImp">Importar planilha</button><button class="btn" id="fuNovo">+ Novo colaborador</button></div></div>
+     <div class="barra-f"><button class="btn sec" id="fuFicha" title="Planilha para o colaborador preencher; depois é só arrastar em Importar arquivos">⇩ Ficha para preencher</button><a class="btn sec" id="fuFerias" href="#/pessoal/ferias">Ver férias</a><button class="btn sec" id="fuImp">Importar planilha</button><button class="btn" id="fuNovo">+ Novo colaborador</button></div></div>
     <div class="tw"><table class="t"><thead><tr><th>Funcionário</th><th>Cliente</th><th>Cargo · setor</th><th>Admissão</th><th>Férias quitadas até</th><th>Faltas</th><th>Situação</th></tr></thead><tbody id="fuCorpo"></tbody></table></div></div>`;
   const $c = (s) => el.querySelector(s);
   const corpo = () => {
@@ -30,8 +30,14 @@ export default async function funcionarios(el, _p, vivo) {
   $c('#fuCli').addEventListener('change', (e) => { filtroCli = e.target.value; corpo(); });
   $c('#fuBusca').addEventListener('input', (e) => { busca = e.target.value; corpo(); });
   el.querySelectorAll('[data-sit]').forEach((b) => b.addEventListener('click', () => { sit = b.dataset.sit; el.querySelectorAll('[data-sit]').forEach((x) => x.setAttribute('aria-pressed', x === b)); corpo(); }));
-  $c('#fuCorpo').addEventListener('click', async (e) => { const r = e.target.closest('[data-id]'); if (r && await formFuncionario(L.find((f) => f.id === r.dataset.id), F)) recarregarTela(); });
+  $c('#fuCorpo').addEventListener('click', (e) => { const r = e.target.closest('[data-id]'); if (r) irPara('#/pessoal/colaborador/' + r.dataset.id); });
   $c('#fuNovo').addEventListener('click', async () => { if (await formFuncionario({ cliente_id: filtroCli }, F)) recarregarTela(); });
+  window.__formFuncionario = formFuncionario;
+  $c('#fuFicha').addEventListener('click', async () => {
+    const emp = S.clientes.find((c) => c.id === S.empresa);
+    if (!emp) return aviso('Escolha a empresa no topo: a ficha sai com o nome e o CNPJ dela.', 'erro');
+    try { const { baixarFicha } = await import('../ficha-modelo.js'); await baixarFicha(emp); aviso('Ficha baixada. Depois de preenchida, arraste em Importar arquivos.'); } catch (er) { aviso(er.message, 'erro'); }
+  });
   $c('#fuImp').addEventListener('click', async () => { if (await importar(clis)) recarregarTela(); });
 }
 

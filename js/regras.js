@@ -33,6 +33,7 @@ export function eDiaUtil(s) { const w = dt(s).getDay(); return w !== 0 && w !== 
 const ultimoDia = (comp) => { const [y, m] = comp.split('-').map(Number); return new Date(y, m, 0).getDate(); };
 export function nesimoDiaUtil(comp, n) { let d = comp + '-01', k = 0; for (let i = 0; i < 40; i++) { if (eDiaUtil(d)) { k++; if (k === n) return d; } d = mais(d, 1); } return d; }
 export function ultimoDiaUtil(comp) { let d = comp + '-' + String(ultimoDia(comp)).padStart(2, '0'); while (!eDiaUtil(d)) d = mais(d, -1); return d; }
+export function proximoDiaUtil(s) { let d = mais(s, 1); while (!eDiaUtil(d)) d = mais(d, 1); return d; }
 export function ajustar(s, modo) { if (modo === 'nenhum' || eDiaUtil(s)) return s; const p = modo === 'antecipa' ? -1 : 1; while (!eDiaUtil(s)) s = mais(s, p); return s; }
 
 export const PERIODOS = { mensal: 'Mensal', trimestral: 'Trimestral', anual: 'Anual' };
