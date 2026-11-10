@@ -134,7 +134,8 @@ export async function aplicarTudo(itens, aoProgresso) {
           for (const x of d.colaboradores || []) {
             if (!x.nome) continue;
             const f = await colaborador(cid, { nome: x.nome, cpf: x.cpf, admissao: x.admissao, cargo: x.funcao ? x.funcao[0] + x.funcao.slice(1).toLowerCase() : null }, conta);
-            await db.gravar('ponto_cartoes', { cliente_id: cid, funcionario_id: f.id, competencia: a.competencia, periodo_ini: d.periodo?.ini || a.competencia + '-01', periodo_fim: d.periodo?.fim || null, dias: x.dias, documento_id: doc.id }, 'funcionario_id,periodo_ini');
+            // "dias" guarda o cartão inteiro: batidas de cada dia, horário previsto e totais do relógio
+            await db.gravar('ponto_cartoes', { cliente_id: cid, funcionario_id: f.id, competencia: a.competencia, periodo_ini: d.periodo?.ini || a.competencia + '-01', periodo_fim: d.periodo?.fim || null, dias: { dias: x.dias, horario: x.horario || {}, totais: x.totais || {}, funcao: x.funcao || null, departamento: x.departamento || null, nFolha: x.nFolha || null }, documento_id: doc.id }, 'funcionario_id,periodo_ini');
             conta.ponto++;
           }
           break;

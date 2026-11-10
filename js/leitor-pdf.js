@@ -29,11 +29,15 @@ export async function textoPDF(arquivoOuBuffer, { maxPaginas = 60 } = {}) {
       if (l) l.itens.push(it); else linhas.push({ y: it.y, itens: [it] });
     }
     linhas.sort((a, b) => b.y - a.y);
-    out.push({ pagina: p, linhas: linhas.map((l) => l.itens.sort((a, b) => a.x - b.x).reduce((s, it, i, arr) => {
-      if (!i) return it.s;
-      const ant = arr[i - 1]; const gap = it.x - (ant.x + ant.w);
-      return s + (gap > 1.5 ? ' ' : '') + it.s;
-    }, '').replace(/\s+/g, ' ').trim()) });
+    linhas.forEach((l) => l.itens.sort((a, b) => a.x - b.x));
+    out.push({ pagina: p,
+      linhas: linhas.map((l) => l.itens.reduce((s, it, i, arr) => {
+        if (!i) return it.s;
+        const ant = arr[i - 1]; const gap = it.x - (ant.x + ant.w);
+        return s + (gap > 1.5 ? ' ' : '') + it.s;
+      }, '').replace(/\s+/g, ' ').trim()),
+      // com posição: para relatórios em colunas (cartão de ponto), cada pedaço com o x onde começa
+      itens: linhas.map((l) => l.itens.map((it) => ({ s: it.s.trim(), x: it.x, w: it.w })).filter((it) => it.s)) });
   }
   return { paginas: out, total: doc.numPages };
 }

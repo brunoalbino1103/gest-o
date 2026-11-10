@@ -138,7 +138,64 @@ function boletoSindical(L) {
   const ref = semAcento(t).match(/referente\s+(?:a\s+)?(janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+de\s+(\d{4})/); if (ref) r.competencia = comp(MESES.indexOf(ref[1]) + 1, ref[2]);
   return r;
 }
+// Cartão de ponto (Secullum e parecidos): cada coluna é achada pela posição do cabeçalho
+const COLS = [[/^DATA$/, 'data'], [/^ENTRADA\s*(\d)$/, 'e'], [/^SA[ÍI]DA\s*(\d)$/, 's'], [/^NORMAIS$/, 'normais'], [/^FALTAS?$/, 'faltas'], [/^BSALDO$/, 'bsaldo'], [/^BTOTAL$/, 'btotal'],
+  [/^BCRED\.?$/, 'bcred'], [/^BDEB\.?$/, 'bdeb'], [/^EX(\d+)%$/, 'ex'], [/^DSR\.DEB$/, 'dsrdeb'], [/^DSR$/, 'dsr'], [/^ATRASOS?$/, 'atrasos'], [/^AD\.?\s*NOT(URNO)?\.?$/, 'adnot'], [/^NOTURNO$/, 'adnot']];
+function colunasDoCabecalho(itens) {
+  const nomes = []; // [{chave, x}]
+  const RE = /DATA|ENTRADA\s*\d|SA[ÍI]DA\s*\d|NORMAIS|FALTAS?|BSALDO|BTOTAL|BCRED\.?|BDEB\.?|EX\d+%|DSR\.DEB|DSR|ATRASOS?|AD\.?\s*NOT(?:URNO)?\.?|NOTURNO/g;
+  const soltos = itens.filter((i) => (i.s.match(RE) || []).length === 1);
+  const passos = soltos.slice(1).map((i, k) => i.x - soltos[k].x).filter((d) => d > 15 && d < 80).sort((a, b) => a - b);
+  const passo = passos[Math.floor(passos.length / 2)] || 38;
+  for (const it of itens) (it.s.match(RE) || []).forEach((nm, k) => {
+    const c = COLS.find(([re]) => re.test(nm.trim())); if (!c) return; const m = nm.trim().match(c[0]);
+    nomes.push({ chave: c[1] === 'e' || c[1] === 's' || c[1] === 'ex' ? c[1] + m[1] : c[1], x: it.x + k * passo });
+  });
+  return nomes;
+}
+function porColuna(itens, cols) {
+  const out = {};
+  for (const it of itens) {
+    const toks = it.s.split(/\s+/).filter(Boolean);
+    let ci = cols.reduce((b, c, i) => (Math.abs(c.x - it.x) < Math.abs(cols[b].x - it.x) ? i : b), 0);
+    for (const t of toks) { if (ci >= cols.length) break; const k = cols[ci].chave; out[k] = out[k] ? out[k] + ' ' + t : t; ci++; }
+  }
+  return out;
+}
+const DSEM = { SEG: 1, TER: 2, QUA: 3, QUI: 4, SEX: 5, SAB: 6, 'SÁB': 6, DOM: 0 };
 function cartaoPonto(pags) {
+  const out = []; let periodo = null;
+  for (const p of pags) {
+    const L = p.linhas, t = L.join('\n'); if (!/CART[ÃA]O PONTO|ESPELHO DE PONTO/i.test(t)) continue;
+    const pr = t.match(/Per[íi]odo:\s*(\d{2}\/\d{2}\/\d{4})\s*at[ée]\s*(\d{2}\/\d{2}\/\d{4})/); if (pr) periodo = { ini: iso(pr[1]), fim: iso(pr[2]) };
+    const iN = L.findIndex((l) => /^NOME:/.test(l)); if (iN < 0) continue;
+    const cand = [L[iN].replace(/^NOME:\s*/, ''), ...L.slice(iN + 1, iN + 5)].find((x) => x && /^[A-ZÀ-Ú][A-ZÀ-Ú' ]{4,}$/.test(x) && !/^(SEG|TER|QUA|QUI|SEX|SAB|S[ÁA]B|DOM)\b/.test(x)) || '';
+    const nome = cand.replace(/\s+[A-Z]{2,3}$/, (s) => (/^(SJC|SP|RJ|MG|SJ|BH)$/.test(s.trim()) ? '' : s)).trim();
+    const la = L.find((l) => /^\d{2}\/\d{2}\/\d{4}\s+\d{3}\.\d{3}\.\d{3}-\d{2}/.test(l)) || '';
+    const lf = L.find((l) => /\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/.test(l) && /[A-Z]{3,}/.test(l.replace(/[\d./-]+/g, ''))) || '';
+    const palavras = lf.replace(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/, '').replace(/[\d.]{9,}/g, '').trim().split(/\s+/);
+    // horário de trabalho previsto por dia da semana
+    const horario = {};
+    for (const l of L) { const m = l.match(/\b(SEG|TER|QUA|QUI|SEX|SAB|SÁB|DOM)\s+((?:\d{2}:\d{2}|Folga|FOLGA)(?:\s+(?:\d{2}:\d{2}|Folga|FOLGA))*)/); if (m && !/^\d{2}\/\d{2}\/\d{4}/.test(l)) horario[DSEM[m[1]]] = m[2].split(/\s+/).filter((x) => /^\d{2}:\d{2}$/.test(x)); }
+    // colunas pela posição do cabeçalho
+    const iH = p.linhas.findIndex((l) => /^DATA\b.*ENTRADA/.test(l)); const cols = iH >= 0 ? colunasDoCabecalho(p.itens[iH]) : [];
+    const dias = [], totais = {};
+    p.linhas.forEach((l, k) => {
+      if (/^\d{2}\/\d{2}\/\d{4}\s*-\s*\S{3}/.test(l) && cols.length) {
+        const its = p.itens[k]; const m = its[0].s.match(/^(\d{2}\/\d{2}\/\d{4})\s*-\s*(\S{3})/);
+        const v = porColuna(its.slice(1), cols.filter((c) => c.chave !== 'data'));
+        const bat = [], manual = []; let st = '';
+        ['e1', 's1', 'e2', 's2', 'e3', 's3', 'e4', 's4'].forEach((c) => { const x = v[c]; if (!x) return; if (/^\d{2}:\d{2}/.test(x)) { bat.push(x.slice(0, 5)); if (/[*¨^]/.test(x)) manual.push(x.slice(0, 5)); } else if (!st) st = x.toUpperCase(); });
+        dias.push({ data: iso(m[1]), dia: m[2], bat, manual, st, normais: v.normais || '', faltas: v.faltas || '', bsaldo: v.bsaldo || '', btotal: v.btotal || '', bcred: v.bcred || '', bdeb: v.bdeb || '', ex60: v.ex60 || v.ex50 || '', ex100: v.ex100 || '', dsr: v.dsr || '', dsrdeb: v.dsrdeb || '', adnot: v.adnot || '' });
+      } else if (/^TOTAIS\b/.test(l) && cols.length) Object.assign(totais, porColuna(p.itens[k].filter((i) => !/^TOTAIS$/.test(i.s)).map((i) => ({ ...i, s: i.s.replace(/^TOTAIS\s*/, '') })), cols.filter((c) => !/^(data|e\d|s\d)$/.test(c.chave))));
+    });
+    let c = out.find((x) => x.nome === nome);
+    if (!c) { c = { nome, cpf: soDigitos((la.match(RE_CPF) || [])[0]), admissao: iso((la.match(/\d{2}\/\d{2}\/\d{4}/) || [])[0]), nFolha: (la.match(/(\d+)\s*$/) || [])[1] || null, funcao: palavras.slice(-1)[0] || null, departamento: palavras.length > 1 ? palavras.slice(-2, -1)[0] : null, horario, dias: [], totais: {} }; out.push(c); }
+    c.dias.push(...dias); Object.assign(c.totais, totais);
+  }
+  return { periodo, colaboradores: out };
+}
+function cartaoPontoAntigo(pags) {
   const out = []; let periodo = null;
   for (const p of pags) {
     const L = p.linhas, t = L.join('\n');
@@ -197,7 +254,8 @@ export async function reconhecer(arquivo) {
         return r(prev ? 'guia_darf_dp' : 'guia_darf_fiscal', d);
       }
       if (/CONTRIBUI[ÇC][ÃA]O ASSISTENCIAL|CONTRIBUI[ÇC][ÃA]O SINDICAL|SINDICATO/.test(t) && /Vencimento/i.test(t)) { const b = boletoSindical(L); return r('guia_sindical', b, { competencia: b.competencia || h.competencia }); }
-      if (/CART[ÃA]O PONTO|ESPELHO DE PONTO/i.test(t)) { const c = cartaoPonto(pdf.paginas); return r('cartao_ponto', c, { competencia: c.periodo?.ini?.slice(0, 7) || h.competencia }); }
+      // o cartão vale para o mês em que o período termina (ex.: 21/06 a 20/07 = julho)
+      if (/CART[ÃA]O PONTO|ESPELHO DE PONTO/i.test(t)) { const c = cartaoPonto(pdf.paginas); return r('cartao_ponto', c, { competencia: (c.periodo?.fim || c.periodo?.ini)?.slice(0, 7) || h.competencia }); }
       if (/\bSALDO\b/.test(T.toUpperCase()) && /EXTRATO/.test(T.toUpperCase()) && /AGENCIA|CONTA/.test(T.toUpperCase())) return r('extrato', {});
       return { ...r('outro', null), departamento: depPeloNome(arquivo.name), resumo: 'PDF não reconhecido' };
     }
