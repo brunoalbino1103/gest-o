@@ -6,7 +6,7 @@ import { topo } from '../app.js';
 import { experiencia, nomeEmp } from './dp-comum.js';
 
 export default async function experienciaDP(el, _r, vivo) {
-  const funcs = (await db.funcionarios()).filter((f) => !S.empresa || f.cliente_id === S.empresa); if (!vivo()) return;
+  const funcs = (await db.funcionarios()).filter((f) => !f.contribuinte && (!S.empresa || f.cliente_id === S.empresa)); if (!vivo()) return;
   const l = funcs.map((f) => ({ f, x: experiencia(f) })).filter((r) => r.x && r.x.fase !== 'encerrada').sort((a, b) => a.x.prox.localeCompare(b.x.prox));
   const enc = funcs.map((f) => ({ f, x: experiencia(f) })).filter((r) => r.x && r.x.fase === 'encerrada' && r.x.dias >= -30);
   topo('Experiência', 'Contratos de experiência em andamento: vencimento do 1º período (prorrogar?) e do final (efetivar ou desligar).');

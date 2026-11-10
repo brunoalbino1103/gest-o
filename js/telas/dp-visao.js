@@ -10,7 +10,7 @@ export default async function visaoDP(el, _r, vivo) {
   if (!vivo()) return;
   const daEmp = (id) => !S.empresa || id === S.empresa;
   const emps = empresasDP().filter((c) => c.tem_funcionarios && daEmp(c.id));
-  const ativos = funcs.filter((f) => f.situacao !== 'desligado' && daEmp(f.cliente_id));
+  const ativos = funcs.filter((f) => f.situacao !== 'desligado' && !f.contribuinte && daEmp(f.cliente_id));
   const nomeC = (id) => nomeEmp(S.clientes.find((c) => c.id === id));
   // férias
   const fer = ativos.map((f) => ({ f, p: situacaoFerias(f, marcs).pior })).filter((x) => x.p).map((x) => ({ ...x, n: nivelFerias(x.p) }));
@@ -20,7 +20,7 @@ export default async function visaoDP(el, _r, vivo) {
   // movimentações
   const movAb = movs.filter((m) => daEmp(m.cliente_id) && (m.status === 'pendente' || m.status === 'andamento'));
   // fechamento
-  const recebidos = (cid) => new Set(docs.filter((d) => d.cliente_id === cid).map((d) => tipoFechamento(d.nome_arquivo)).filter(Boolean));
+  const recebidos = (cid) => new Set(docs.filter((d) => d.cliente_id === cid).map((d) => tipoFechamento(d.nome_arquivo, d.tipo)).filter(Boolean));
   const fechadas = emps.filter((c) => ITENS_FECHAMENTO.filter(([k]) => k !== 'sindical').every(([k]) => recebidos(c.id).has(k))).length;
   // obrigações do DP
   const obr = tarefas.filter((t) => t.departamento === 'dp' && daEmp(t.cliente_id));

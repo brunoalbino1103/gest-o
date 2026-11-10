@@ -18,20 +18,20 @@ const T = (f) => () => import('./telas/' + f + '.js');
 export const AREAS = {
   fiscal: { nome: 'Departamento Fiscal', curto: 'Fiscal', cor: '#2F5BEA', ct: '#EAF0FF', dep: 'fiscal', grupos: [
     ['Geral', [['visao', 'Visão geral', T('departamento')]]],
-    ['Notas', [['painel', 'Painel Fiscal', T('painel-fiscal')], ['importar', 'Importar XML', T('documentos')]]],
-    ['Arquivos', [['documentos', 'Documentos', T('documentos')]]],
+    ['Notas', [['painel', 'Painel Fiscal', T('painel-fiscal')]]],
+    ['Arquivos', [['importar', 'Importar arquivos', T('importador')], ['documentos', 'Documentos', T('documentos')]]],
   ] },
   pessoal: { nome: 'Departamento Pessoal', curto: 'Pessoal', cor: '#7A4FD6', ct: '#F1EBFC', dep: 'dp', grupos: [
     ['Geral', [['visao', 'Visão geral', T('dp-visao')]]],
     ['Cadastros', [['empresas', 'Empresas', T('dp-empresas')], ['colaboradores', 'Colaboradores', T('funcionarios')]]],
     ['Rotina do mês', [['fechamento', 'Fechamento do mês', T('dp-fechamento')], ['obrigacoes', 'Obrigações', T('departamento')], ['ponto', 'Ponto e horas extras', T('dp-ponto')], ['vrvt', 'VR/VT', T('dp-vrvt')]]],
     ['Acompanhar', [['ferias', 'Férias', T('dp-ferias')], ['experiencia', 'Experiência', T('dp-experiencia')], ['movimentacoes', 'Admissões e rescisões', T('dp-movimentacoes')]]],
-    ['Arquivos', [['documentos', 'Documentos', T('documentos')]]],
+    ['Arquivos', [['importar', 'Importar arquivos', T('importador')], ['documentos', 'Documentos', T('documentos')]]],
   ] },
   contabil: { nome: 'Contabilidade', curto: 'Contábil', cor: '#0E8A7E', ct: '#E3F4F2', dep: 'contabil', grupos: [
     ['Geral', [['visao', 'Visão geral', T('departamento')]]],
-    ['Rotina do mês', [['extratos', 'Extratos bancários', T('contabil-extratos')], ['importar', 'Importar arquivos', T('documentos')]]],
-    ['Arquivos', [['documentos', 'Documentos', T('documentos')]]],
+    ['Rotina do mês', [['extratos', 'Extratos bancários', T('contabil-extratos')]]],
+    ['Arquivos', [['importar', 'Importar arquivos', T('importador')], ['documentos', 'Documentos', T('documentos')]]],
   ] },
   cadastros: { nome: 'Cadastros e configurações', curto: 'Cadastros', cor: '#475467', ct: '#F2F4F7', dep: null, grupos: [
     ['Cadastros', [['clientes', 'Empresas (clientes)', T('clientes')], ['empresa', 'Ficha da empresa', T('cliente'), true]]],
@@ -75,7 +75,7 @@ async function telaInicio() {
         <span class="ic">${svg(k)}</span><b>${a.nome}</b>
         <p>${{ fiscal: 'Notas fiscais, Painel Fiscal por empresa, DIFAL, impostos e obrigações do mês.', pessoal: 'Colaboradores, férias, ponto, experiência, admissões e rescisões, VR/VT e o fechamento da folha.', contabil: 'Extratos bancários, conciliação, lançamentos e balancetes.' }[k]}</p>
         <span class="nums" data-nums="${a.dep}"><span>…</span></span></a>`; }).join('')}</div>
-      <div class="atalhos"><a class="atalho" href="#/cadastros/clientes">${'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' + SVG.cadastros + '</svg>'} Empresas e configurações</a></div>
+      <div class="atalhos"><a class="atalho" href="#/pessoal/importar" style="background:var(--co);color:#fff;border-color:var(--co);font-weight:600">⇪ Importar arquivos (o sistema reconhece sozinho)</a><a class="atalho" href="#/cadastros/clientes">${'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' + SVG.cadastros + '</svg>'} Empresas e configurações</a></div>
     </div></div>`;
   $('#sair').addEventListener('click', async () => { S.perfil = null; await db.sair(); telaLogin(); });
   try {
@@ -108,6 +108,7 @@ function montarArea(area) {
           ${area === 'cadastros' ? '' : `<div class="ctrl azul"><span class="ctrl-lab">Empresa</span><label class="sr" for="selEmp">Empresa</label><select id="selEmp">${opcoesEmpresa()}</select></div>
           <div class="ctrl"><span class="ctrl-lab">Mês</span><button id="cAnt" aria-label="Mês anterior">‹</button><label class="sr" for="cSel">Competência</label><select id="cSel">${opcoesComp()}</select><button id="cProx" aria-label="Mês seguinte">›</button></div>`}
           <nav class="tb-switch" aria-label="Departamentos">${['fiscal', 'pessoal', 'contabil'].map((k) => `<a href="#/${k}/visao" class="${k === area ? 'on' : ''}" style="--c:${AREAS[k].cor}">${AREAS[k].curto}</a>`).join('')}<a href="#/cadastros/clientes" class="${area === 'cadastros' ? 'on' : ''}" title="Empresas e configurações">⚙</a></nav>
+          ${area === 'cadastros' ? '' : `<a class="btn" href="#/${area}/importar" style="min-height:36px;border-radius:999px">⇪ Importar arquivos</a>`}
           <button class="tb-sair" id="sair" title="${esc(S.perfil?.email || '')}">Sair</button>
         </div>
       </div>

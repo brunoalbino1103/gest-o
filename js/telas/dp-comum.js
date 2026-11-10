@@ -50,7 +50,10 @@ export const ITENS_FECHAMENTO = [
   ['ponto', 'Cartões de ponto', /ponto/],
   ['ferias', 'Programação de férias', /programa.{0,3}o.{0,4}de.{0,3}f.rias|ferias/],
 ];
-export function tipoFechamento(nome) {
+// pelo tipo reconhecido no conteúdo (importação automática) ou, se não houver, pelo nome do arquivo
+const POR_TIPO = { folha_extrato: 'folha', folha_resumo: 'folha', holerites: 'holerites', liquidos: 'liquidos', guia_darf_dp: 'darf', recibo_dctfweb: 'dctf', creditos_dctfweb: 'dctf', extrato_dctfweb: 'dctf', guia_fgts: 'fgts', fgts_detalhe: 'fgts_det', guia_sindical: 'sindical', cartao_ponto: 'ponto', ferias_programacao: 'ferias' };
+export function tipoFechamento(nome, tipo) {
+  if (tipo && POR_TIPO[tipo]) return POR_TIPO[tipo];
   const n = semAcento(nome).replace(/[_.\-]+/g, ' ');
   if (/detalhe.{0,6}fgts|re fgts|relatorio.{0,8}fgts|relatorioextrato|extrato.{0,4}process/.test(n)) return 'fgts_det';
   for (const [k, , re] of ITENS_FECHAMENTO) if (k !== 'fgts_det' && re.test(n)) return k;

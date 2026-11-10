@@ -238,6 +238,16 @@ export default {
   async salvarMovimentacao(m) { D.movimentacoes ||= []; if (m.id) { const i = D.movimentacoes.findIndex((x) => x.id === m.id); D.movimentacoes[i] = { ...D.movimentacoes[i], ...m }; grava(); return copia(D.movimentacoes[i]); } const n = { status: 'pendente', ...m, id: id(), criado_por: D.logado, criado_em: new Date().toISOString() }; D.movimentacoes.push(n); grava(); return copia(n); },
   async excluirMovimentacao(mid) { D.movimentacoes = (D.movimentacoes || []).filter((x) => x.id !== mid); grava(); },
 
+  async listar(tabela, filtros = {}) { carrega(); return copia(filtra(D[tabela] || [], filtros)); },
+  async gravar(tabela, linhas, conflito) {
+    carrega(); D[tabela] ||= []; const ch = conflito.split(',');
+    for (const l of (Array.isArray(linhas) ? linhas : [linhas])) {
+      const i = D[tabela].findIndex((x) => ch.every((k) => x[k] === l[k]));
+      if (i >= 0) D[tabela][i] = { ...D[tabela][i], ...l, atualizado_em: new Date().toISOString() }; else D[tabela].push({ id: id(), ...l, atualizado_em: new Date().toISOString() });
+    }
+    grava();
+  },
+
   async historico({ cliente_id, limite = 50 } = {}) { carrega(); return copia(filtra(D.historico, { cliente_id })).slice(-limite).reverse(); },
   async registrar(acao, detalhe, cliente_id) { carrega(); D.historico.push({ id: D.historico.length + 1, usuario: D.logado, acao, detalhe, cliente_id: cliente_id || null, em: new Date().toISOString() }); if (D.historico.length > 500) D.historico.shift(); grava(); },
 

@@ -156,6 +156,13 @@ export default {
   },
   async excluirMovimentacao(id) { ok(await sb.from('movimentacoes').delete().eq('id', id)); },
 
+  // ---------- tabelas preenchidas pela importação automática ----------
+  async listar(tabela, filtros = {}) { return todas(() => { let q = sb.from(tabela).select('*'); Object.entries(filtros).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') q = q.eq(k, v); }); return q.order('id'); }); },
+  async gravar(tabela, linhas, conflito) {
+    const L = (Array.isArray(linhas) ? linhas : [linhas]).map((l) => ({ ...limpa(l), atualizado_em: new Date().toISOString() }));
+    for (let i = 0; i < L.length; i += 300) ok(await sb.from(tabela).upsert(L.slice(i, i + 300), { onConflict: conflito }));
+  },
+
   // ---------- histórico ----------
   async historico({ cliente_id, limite = 50 } = {}) {
     let q = sb.from('historico').select('*').order('em', { ascending: false }).limit(limite); if (cliente_id) q = q.eq('cliente_id', cliente_id); return ok(await q);

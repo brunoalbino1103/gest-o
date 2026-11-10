@@ -7,7 +7,7 @@ import { topo } from '../app.js';
 import { tipoFechamento, empresasDP, nomeEmp } from './dp-comum.js';
 
 export default async function ponto(el, _r, vivo) {
-  const docs = (await db.documentos({ competencia: S.comp, departamento: 'dp' })).filter((d) => tipoFechamento(d.nome_arquivo) === 'ponto'); if (!vivo()) return;
+  const docs = (await db.documentos({ competencia: S.comp, departamento: 'dp' })).filter((d) => tipoFechamento(d.nome_arquivo, d.tipo) === 'ponto'); if (!vivo()) return;
   const emps = empresasDP().filter((c) => c.tem_funcionarios && (!S.empresa || c.id === S.empresa));
   topo('Ponto e horas extras', `${nomeComp(S.comp)} · cartões de ponto recebidos por empresa`);
   el.innerHTML = `<div class="banner"><div><b>O painel completo de ponto vem na próxima etapa.</b><br><span class="small">Ocorrências, atrasos, horas extras e fechamento, como no seu painel de Ponto. Para isso preciso de um arquivo de exportação do relógio (Pmovel ou outro). Por enquanto, envie os cartões em <a href="#/pessoal/fechamento">Fechamento do mês</a>.</span></div></div>

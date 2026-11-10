@@ -10,7 +10,21 @@ const ano = (iso, n) => { const [y, m, d] = iso.split('-').map(Number); const ul
 // art. 130 da CLT: dias de férias conforme as faltas sem justificativa no período aquisitivo
 const direitoPorFaltas = (n) => (n <= 5 ? 30 : n <= 14 ? 24 : n <= 23 ? 18 : n <= 32 ? 12 : 0);
 
-function periodosDe(f, empresa, marcs, faltas) {
+// Períodos que vieram da Programação de Férias do Domínio (mais exatos que o cálculo pela admissão)
+function periodosImportados(f, empresa, imps, marcs) {
+  const base = imps.reduce((m, p) => (p.data_base && p.data_base > m ? p.data_base : m), '');
+  const L = imps.filter((p) => !base || p.data_base === base || !p.data_base).sort((a, b) => a.inicio.localeCompare(b.inicio));
+  const per = L.map((p) => { const fim = p.fim || dia(ano(p.inicio, 1), -1); const completo = fim < hoje; return { id: `${f.id}-${p.inicio.slice(0, 4)}`, ini: p.inicio, fim, conc: ano(fim, 1), limite: p.limite || dia(ano(fim, 1), -29), direito: completo ? Math.round(+p.dias_restantes + +p.dias_gozados || 30) : +p.dias_direito || 0, gozados: +p.dias_gozados || 0, abono: 0, faltas: +p.faltas || 0 }; });
+  // férias marcadas no sistema depois da data-base do relatório também descontam
+  marcs.filter((m) => m.inicio && m.inicio <= hoje && (!base || m.inicio > base)).sort((a, b) => a.inicio.localeCompare(b.inicio)).forEach((m) => {
+    let d = (+m.dias || 0) + (+m.abono || 0); for (const p of per) { const livre = p.direito - p.gozados - p.abono; if (livre <= 0) continue; const u = Math.min(livre, d); p.gozados += u; d -= u; if (!d) break; }
+  });
+  return per.map((p) => ({ id: p.id, pid: f.id, empresa, funcionario: f.nome, setor: f.setor || '', inicio_aquisitivo: p.ini, fim_aquisitivo: p.fim, fim_concessivo: p.conc, limite_inicio: p.limite,
+    dias_direito: String(p.direito), dias_gozados: String(p.gozados), dias_abono: String(p.abono), faltas_relatorio: String(p.faltas) }));
+}
+
+function periodosDe(f, empresa, marcs, faltas, imps = []) {
+  if (imps.length) return periodosImportados(f, empresa, imps, marcs);
   if (!f.admissao) return [];
   const per = [];
   for (let k = 0, ini = f.admissao; ini <= hoje && k < 60; k++, ini = ano(f.admissao, k)) {
@@ -46,10 +60,10 @@ function feriadosMapa(extras) {
 
 async function iniciar() {
   if (!(await db.usuario())) { location.href = 'index.html'; return; }
-  const [clientes, funcs, marcs, faltas, docs, extras] = await Promise.all([db.clientes(), db.funcionarios(), db.feriasMarcacoes(), db.faltas(), db.documentos({ departamento: 'dp' }), db.feriados().catch(() => [])]);
+  const [clientes, funcs, marcs, faltas, docs, extras, imps] = await Promise.all([db.clientes(), db.funcionarios(), db.feriasMarcacoes(), db.faltas(), db.documentos({ departamento: 'dp' }), db.feriados().catch(() => []), db.listar('ferias_periodos').catch(() => [])]);
   const cli = new Map(clientes.filter((c) => c.ativo).map((c) => [c.id, c]));
   const nomeCli = (id) => { const c = cli.get(id); return c ? (c.nome_fantasia || c.razao_social) : ''; };
-  const ativos = funcs.filter((f) => f.situacao !== 'desligado' && cli.has(f.cliente_id));
+  const ativos = funcs.filter((f) => f.situacao !== 'desligado' && !f.contribuinte && cli.has(f.cliente_id)); // sócio com pró-labore não tem férias CLT
   const porId = new Map(ativos.map((f) => [f.id, f]));
   const empresas = [...new Set(ativos.map((f) => nomeCli(f.cliente_id)))].sort((a, b) => a.localeCompare(b, 'pt'));
 
@@ -58,7 +72,7 @@ async function iniciar() {
     periodos: [], ferias: [], faltas: [], pendencias: [],
   };
   ativos.forEach((f) => {
-    const ps = periodosDe(f, nomeCli(f.cliente_id), marcs.filter((m) => m.funcionario_id === f.id && !m.oculta), faltas.filter((x) => x.funcionario_id === f.id));
+    const ps = periodosDe(f, nomeCli(f.cliente_id), marcs.filter((m) => m.funcionario_id === f.id && !m.oculta), faltas.filter((x) => x.funcionario_id === f.id), imps.filter((p) => p.funcionario_id === f.id));
     D.periodos.push(...ps);
     faltas.filter((x) => x.funcionario_id === f.id).forEach((x) => {
       const p = ps.find((p) => x.data >= p.inicio_aquisitivo && x.data <= p.fim_aquisitivo);

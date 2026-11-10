@@ -19,7 +19,7 @@ export default async function vrvt(el, _r, vivo) {
   const linhas = [];
   emps.forEach((c) => {
     const d = cfg.get(c.id) || {};
-    funcs.filter((f) => f.cliente_id === c.id && f.situacao === 'ativo' && (!f.admissao || f.admissao <= uteis[uteis.length - 1])).forEach((f) => {
+    funcs.filter((f) => f.cliente_id === c.id && f.situacao === 'ativo' && !f.contribuinte && (!f.admissao || f.admissao <= uteis[uteis.length - 1])).forEach((f) => {
       const fer = new Set(); marcs.filter((m) => m.funcionario_id === f.id && !m.oculta && m.inicio).forEach((m) => { for (let i = 0; i < (+m.dias || 0); i++) fer.add(dia(m.inicio, i)); });
       const antes = f.admissao ? uteis.filter((u) => u < f.admissao).length : 0;
       const nFer = uteis.filter((u) => fer.has(u)).length;

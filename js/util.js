@@ -17,6 +17,10 @@ export const TIPOS_DOC = {
   nfe: 'NF-e', nfce: 'NFC-e', nfse: 'NFS-e', cte: 'CT-e', evento: 'Evento de nota (cancelamento)', inutilizacao: 'Inutilização de numeração', guia: 'Guia de imposto', holerite: 'Holerite / folha',
   ponto: 'Ponto', atestado: 'Atestado', extrato: 'Extrato bancário', contrato: 'Contrato / societário',
   balancete: 'Balancete / relatório', planilha: 'Planilha', outro: 'Outro',
+  // reconhecidos pelo conteúdo na importação automática
+  ferias_programacao: 'Programação de férias', folha_extrato: 'Folha de pagamento', folha_resumo: 'Resumo da folha', holerites: 'Holerites', liquidos: 'Relação de líquidos',
+  guia_fgts: 'Guia FGTS Digital', fgts_detalhe: 'Detalhe do FGTS', guia_darf_dp: 'DARF previdenciário', recibo_dctfweb: 'Recibo DCTFWeb', creditos_dctfweb: 'Créditos DCTFWeb',
+  extrato_dctfweb: 'Extrato DCTFWeb', guia_sindical: 'Guia sindical / assistencial', cartao_ponto: 'Cartão de ponto', guia_das: 'Guia do DAS', guia_darf_fiscal: 'DARF', cancelamento: 'Cancelamento de nota',
 };
 export const DEP_DO_TIPO = {
   nfe: 'fiscal', nfce: 'fiscal', nfse: 'fiscal', cte: 'fiscal', evento: 'fiscal', inutilizacao: 'fiscal', guia: 'fiscal', holerite: 'dp', ponto: 'dp',
