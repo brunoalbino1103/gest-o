@@ -109,6 +109,8 @@ async function iniciar() {
   await carrega('js/ferias/painel-calc.js');
   await carrega('js/ferias/painel.js');
   const pc = new URLSearchParams(location.search).get('cliente');
+  // dentro do sistema (aba Férias do Pessoal) a empresa vem da barra do topo do sistema
+  if (new URLSearchParams(location.search).get('embed')) { const r1 = document.querySelector('.tb-row1'); if (r1) r1.style.display = 'none'; }
   if (pc && cli.has(pc) && empresas.includes(nomeCli(pc))) { sel.value = nomeCli(pc); sel.dispatchEvent(new Event('change')); }
   document.getElementById('carregandoFerias').remove();
   if (!ativos.length) {

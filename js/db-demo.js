@@ -3,7 +3,7 @@
 import { somaMes, compPadrao, hojeISO } from './util.js';
 import { tarefasParaGerar, OBRIGACOES_PADRAO } from './regras.js';
 
-const CHAVE = 'contabil_demo_v4';
+const CHAVE = 'contabil_demo_v5';
 const id = () => crypto.randomUUID();
 let D = null;
 const grava = () => { try { localStorage.setItem(CHAVE, JSON.stringify(D)); } catch (e) { /* cheio: segue só em memória */ } };
@@ -105,9 +105,9 @@ function semear() {
   D.obrigacoes = OBRIGACOES_PADRAO.map((o) => ({ id: id(), ...o }));
   const base = { inscricao_estadual: '', inscricao_municipal: '', email_financeiro: '', telefone: '', observacoes: '', ativo: true, criado_em: new Date().toISOString(), resp_fiscal: 'demo-ana', resp_dp: 'demo-rafael', resp_contabil: eu };
   D.clientes = [
-    { ...base, id: id(), razao_social: 'Casa & Clima Comércio Ltda', nome_fantasia: 'Casa & Clima', cnpj: cnpjTeste(2), regime: 'simples', uf: 'SP', municipio: 'São José dos Campos', tem_funcionarios: true, email: 'contato@casaclima.test', email_dp: 'rh@casaclima.test' },
-    { ...base, id: id(), razao_social: 'Serviços Integrados Ltda', nome_fantasia: 'Serviços Integrados', cnpj: cnpjTeste(1), regime: 'presumido', uf: 'SP', municipio: 'São Paulo', tem_funcionarios: true, email: 'adm@servicos.test', email_dp: 'dp@servicos.test' },
-    { ...base, id: id(), razao_social: 'Oficina Exemplo', nome_fantasia: 'Oficina Exemplo', cnpj: cnpjTeste(5), regime: 'mei', uf: 'SP', municipio: 'Jacareí', tem_funcionarios: false, email: 'oficina@exemplo.test', email_dp: '' },
+    { ...base, id: id(), razao_social: 'Casa & Clima Comércio Ltda', nome_fantasia: 'Casa & Clima', cnpj: cnpjTeste(2), regime: 'simples', porte: 'epp', atividade: 'comercio', codigo: '101', uf: 'SP', municipio: 'São José dos Campos', tem_funcionarios: true, email: 'contato@casaclima.test', email_dp: 'rh@casaclima.test' },
+    { ...base, id: id(), razao_social: 'Serviços Integrados Ltda', nome_fantasia: 'Serviços Integrados', cnpj: cnpjTeste(1), regime: 'presumido', porte: 'me', atividade: 'servico', codigo: '102', uf: 'SP', municipio: 'São Paulo', tem_funcionarios: true, email: 'adm@servicos.test', email_dp: 'dp@servicos.test' },
+    { ...base, id: id(), razao_social: 'Oficina Exemplo', nome_fantasia: 'Oficina Exemplo', cnpj: cnpjTeste(5), regime: 'mei', porte: 'mei', atividade: 'servico', codigo: '103', uf: 'SP', municipio: 'Jacareí', tem_funcionarios: false, email: 'oficina@exemplo.test', email_dp: '' },
   ];
   const atual = compPadrao(), meses = [somaMes(atual, -2), somaMes(atual, -1), atual];
   const [cc, si] = D.clientes;
@@ -130,6 +130,13 @@ function semear() {
     { id: 'mk-demo1', cliente_id: cc.id, funcionario_id: D.funcionarios[1].id, inicio: proxSeg(mais(0, -12)), dias: 20, abono: 10, obs: '' },
     { id: 'mk-demo2', cliente_id: si.id, funcionario_id: D.funcionarios[7].id, inicio: proxSeg(mais(0, 35)), dias: 30, abono: 0, obs: 'Pedido da colaboradora' },
   ];
+  // experiência: a mais nova está nos 90 dias de contrato de experiência
+  Object.assign(D.funcionarios[5], { exp_dias_1: 45, exp_dias_total: 90, admissao: mais(0, -40) }); Object.assign(D.funcionarios[9], { exp_dias_1: 30, exp_dias_total: 90, admissao: mais(0, -25) });
+  D.dp_empresas = [
+    { cliente_id: cc.id, sindicato: 'Sindicato dos Comerciários (exemplo)', cct_registro: 'SP000000/2026', cct_vigencia_ini: '2026-09-01', cct_vigencia_fim: '2027-08-31', data_base_mes: 9, piso_salarial: 1980, jornada_semanal: 44, horario_padrao: 'Seg a sex 08:00-18:00, sáb 08:00-12:00', he_dia_util: 60, he_domingo: 100, adicional_noturno: 20, vr_dia: 25, vt_dia: 13, contribuicao_assistencial: '1% do salário, com direito de oposição', observacoes: 'Exemplo fictício' },
+    { cliente_id: si.id, sindicato: 'Sindicato das Empresas de Serviços (exemplo)', cct_registro: '', cct_vigencia_ini: '2026-05-01', cct_vigencia_fim: '2027-04-30', data_base_mes: 5, piso_salarial: 2150, jornada_semanal: 40, horario_padrao: 'Seg a sex 09:00-18:00', he_dia_util: 50, he_domingo: 100, adicional_noturno: 20, vr_dia: 32, vt_dia: 0, contribuicao_assistencial: '', observacoes: '' },
+  ];
+  D.movimentacoes = [{ id: id(), cliente_id: cc.id, funcionario_id: null, tipo: 'admissao', nome: 'Nova contratação (exemplo)', data_evento: mais(0, 5), prazo: mais(0, 4), status: 'pendente', detalhe: { cargo: 'Vendedor(a) interno' }, observacao: 'Aguardando documentos do candidato', criado_em: new Date().toISOString() }];
   D.faltas = [{ id: id(), cliente_id: cc.id, funcionario_id: D.funcionarios[3].id, data: mais(0, -40), quantidade: 7, fonte: 'Cartão de ponto' }];
 
   // tarefas: mês anterior quase todo concluído, mês atual em andamento
@@ -143,7 +150,7 @@ function semear() {
   });
   grava();
 }
-function carrega() { if (D) return; try { D = JSON.parse(localStorage.getItem(CHAVE) || 'null'); } catch (e) { D = null; } if (!D || !D.clientes) semear(); try { ['contabil_demo_v1', 'contabil_demo_v2', 'contabil_demo_v3'].forEach((k) => localStorage.removeItem(k)); } catch (e) { /* ok */ } }
+function carrega() { if (D) return; try { D = JSON.parse(localStorage.getItem(CHAVE) || 'null'); } catch (e) { D = null; } if (!D || !D.clientes) semear(); try { ['contabil_demo_v1', 'contabil_demo_v2', 'contabil_demo_v3', 'contabil_demo_v4'].forEach((k) => localStorage.removeItem(k)); } catch (e) { /* ok */ } }
 
 let ouvinte = null;
 const filtra = (l, f) => l.filter((x) => Object.entries(f).every(([k, v]) => v === undefined || v === null || v === '' || x[k] === v));
@@ -224,6 +231,12 @@ export default {
   async salvarFalta(f) { const n = { ...f, id: id() }; D.faltas.push(n); grava(); return copia(n); },
   async excluirFalta(fid) { D.faltas = D.faltas.filter((f) => f.id !== fid); grava(); },
   async registrarLink(meta) { const d = { id: id(), ...meta, caminho: 'link:' + id(), enviado_por: D.logado, enviado_em: new Date().toISOString() }; D.documentos.push(d); grava(); return copia(d); },
+
+  async dpEmpresas() { carrega(); return copia(D.dp_empresas || []); },
+  async salvarDpEmpresa(o) { D.dp_empresas = (D.dp_empresas || []).filter((x) => x.cliente_id !== o.cliente_id); const n = { ...o, atualizado_em: new Date().toISOString() }; D.dp_empresas.push(n); grava(); return copia(n); },
+  async movimentacoes({ cliente_id } = {}) { carrega(); return copia(filtra(D.movimentacoes || [], { cliente_id })).sort((a, b) => (a.prazo || '').localeCompare(b.prazo || '')); },
+  async salvarMovimentacao(m) { D.movimentacoes ||= []; if (m.id) { const i = D.movimentacoes.findIndex((x) => x.id === m.id); D.movimentacoes[i] = { ...D.movimentacoes[i], ...m }; grava(); return copia(D.movimentacoes[i]); } const n = { status: 'pendente', ...m, id: id(), criado_por: D.logado, criado_em: new Date().toISOString() }; D.movimentacoes.push(n); grava(); return copia(n); },
+  async excluirMovimentacao(mid) { D.movimentacoes = (D.movimentacoes || []).filter((x) => x.id !== mid); grava(); },
 
   async historico({ cliente_id, limite = 50 } = {}) { carrega(); return copia(filtra(D.historico, { cliente_id })).slice(-limite).reverse(); },
   async registrar(acao, detalhe, cliente_id) { carrega(); D.historico.push({ id: D.historico.length + 1, usuario: D.logado, acao, detalhe, cliente_id: cliente_id || null, em: new Date().toISOString() }); if (D.historico.length > 500) D.historico.shift(); grava(); },

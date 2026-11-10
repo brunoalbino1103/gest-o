@@ -8,24 +8,26 @@ import { linhaPainel } from '../leitor.js';
 
 const F = { dep: '', tipo: '', busca: '', so: '' };
 
-export default async function documentos(el, _p, vivo) {
-  topo('Documentos', `Competência ${nomeComp(S.comp)}`);
-  el.innerHTML = `<div class="card"><div class="card-h"><h2>Importar documentos</h2></div><div class="card-b" id="dImp"></div></div>
+export default async function documentos(el, _p, vivo, ctx = {}) {
+  const imp = ctx.aba === 'importar'; F.dep = ctx.dep || '';
+  const emp = S.empresa ? S.clientes.find((c) => c.id === S.empresa) : null;
+  topo(imp ? (ctx.dep === 'fiscal' ? 'Importar XML' : 'Importar arquivos') : 'Documentos', imp ? (ctx.dep === 'fiscal' ? 'NF-e, NFC-e, NFS-e, CT-e, cancelamentos e inutilizações: o cliente é reconhecido pelo CNPJ.' : 'Extratos OFX, PDFs e planilhas.') : `Arquivos de ${nomeComp(S.comp)}${emp ? '' : ' · todas as empresas'}`);
+  el.innerHTML = `<div class="card" ${imp ? '' : 'hidden'}><div class="card-b" id="dImp"></div></div>
     <div class="card"><div class="card-h"><h2>Arquivos de ${nomeComp(S.comp)}</h2>
      <div class="barra-f">
       <label class="sr" for="fBusca">Buscar</label><input type="search" id="fBusca" placeholder="Arquivo ou cliente" value="${esc(F.busca)}">
-      <label class="sr" for="fDep">Departamento</label><select id="fDep"><option value="">Todos os departamentos</option>${Object.entries(DEPS).map(([k, d]) => `<option value="${k}" ${F.dep === k ? 'selected' : ''}>${d.longo}</option>`).join('')}</select>
+      <label class="sr" for="fDep">Departamento</label><select id="fDep" ${ctx.dep ? 'hidden' : ''}><option value="">Todos os departamentos</option>${Object.entries(DEPS).map(([k, d]) => `<option value="${k}" ${F.dep === k ? 'selected' : ''}>${d.longo}</option>`).join('')}</select>
       <label class="sr" for="fTipo">Tipo</label><select id="fTipo"><option value="">Todos os tipos</option>${Object.entries(TIPOS_DOC).map(([k, t]) => `<option value="${k}" ${F.tipo === k ? 'selected' : ''}>${t}</option>`).join('')}</select>
       <label class="chk small"><input type="checkbox" id="fSem" ${F.so ? 'checked' : ''}> Só sem cliente</label>
      </div></div>
      <div id="dLista"><div class="carregando">Carregando…</div></div></div>`;
-  areaImportacao(el.querySelector('#dImp'), { aoTerminar: () => carregar() });
+  if (imp) areaImportacao(el.querySelector('#dImp'), { cliente: emp, dep: ctx.dep, aoTerminar: () => carregar() });
   const $c = (s) => el.querySelector(s);
   let docs = [];
   const carregar = async () => { docs = await db.documentos({ competencia: S.comp }); if (vivo()) lista(); };
   const lista = () => {
     const q = semAcento(F.busca);
-    const L = docs.filter((d) => (!F.dep || d.departamento === F.dep) && (!F.tipo || d.tipo === F.tipo) && (!F.so || !d.cliente_id) && (!q || semAcento(d.nome_arquivo + ' ' + nomeCliente(d.cliente_id)).includes(q)));
+    const L = docs.filter((d) => (!S.empresa || d.cliente_id === S.empresa) && (!F.dep || d.departamento === F.dep) && (!F.tipo || d.tipo === F.tipo) && (!F.so || !d.cliente_id) && (!q || semAcento(d.nome_arquivo + ' ' + nomeCliente(d.cliente_id)).includes(q)));
     $c('#dLista').innerHTML = L.length ? `<div class="tw" style="max-height:640px;overflow:auto"><table class="t"><thead><tr><th>Arquivo</th><th>Cliente</th><th>Departamento</th><th>Tipo</th><th>Enviado</th><th></th></tr></thead><tbody>
       ${L.slice(0, 500).map((d) => `<tr data-id="${d.id}"><td><button class="lk-doc" data-abre style="border:0;background:none;padding:0;color:var(--co-dk);text-align:left;word-break:break-all;font-weight:500">${esc(d.nome_arquivo)}</button><div class="small muted">${tamanho(d.tamanho || 0)}${d.dados?.tipo === 'nota' ? ' · ' + resumoDados(d.dados) : ''}</div></td>
         <td>${d.cliente_id ? esc(nomeCliente(d.cliente_id)) : '<span class="pill p-at">Sem cliente</span>'}</td>

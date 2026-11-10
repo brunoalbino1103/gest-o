@@ -29,6 +29,11 @@ export function trocarTarefaNoCache(t) { const l = S._tarefas.get(t.competencia)
 export function limparCacheTarefas() { S._tarefas.clear(); }
 
 export function mudarComp(c) { S.comp = c; try { sessionStorage.setItem(COMP_KEY, c); } catch (e) { /* ok */ } }
+// empresa escolhida no topo ('' = todas)
+try { S.empresa = sessionStorage.getItem('contabil_empresa') || ''; } catch (e) { S.empresa = ''; }
+export function mudarEmpresa(id) { S.empresa = id || ''; try { sessionStorage.setItem('contabil_empresa', S.empresa); } catch (e) { /* ok */ } }
+export const empresaAtual = () => (S.empresa ? S.clientes.find((c) => c.id === S.empresa) || null : null);
+export const daEmpresa = (cliente_id) => !S.empresa || cliente_id === S.empresa;
 
 export const cliente = (id) => S.clientes.find((c) => c.id === id);
 export const nomeCliente = (id) => { const c = cliente(id); return c ? (c.nome_fantasia || c.razao_social) : 'Sem cliente'; };

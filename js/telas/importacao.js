@@ -8,7 +8,7 @@ const LIMITE = 50 * 1024 * 1024; // limite por arquivo no plano gratuito do Supa
 const rotCli = (c) => `${c.nome_fantasia || c.razao_social}${c.cnpj ? ' — ' + fmtCNPJ(c.cnpj) : ''}`;
 
 // Monta a área de importação dentro de "alvo". opcoes.cliente fixa o cliente (tela do cliente).
-export function areaImportacao(alvo, { cliente = null, aoTerminar } = {}) {
+export function areaImportacao(alvo, { cliente = null, dep: depPadrao = null, aoTerminar } = {}) {
   let fila = [];
   const porCnpj = new Map(S.clientes.filter((c) => c.cnpj).map((c) => [c.cnpj, c]));
   const porRot = new Map(S.clientes.map((c) => [rotCli(c), c]));
@@ -32,7 +32,7 @@ export function areaImportacao(alvo, { cliente = null, aoTerminar } = {}) {
     const novos = [];
     for (const f of arquivos) {
       const ext = f.name.split('.').pop().toLowerCase();
-      const it = { id: crypto.randomUUID(), arq: f, cli: cliente, dep: null, tipo: 'outro', comp: S.comp, leitura: '', dados: null, nota: null, erro: '', estado: 'pronto' };
+      const it = { id: crypto.randomUUID(), arq: f, cli: cliente, dep: depPadrao, tipo: 'outro', comp: S.comp, leitura: '', dados: null, nota: null, erro: '', estado: 'pronto' };
       try {
         if (f.size > LIMITE) { it.estado = 'erro'; it.erro = 'Arquivo maior que 50 MB'; }
         else if (ext === 'xml') {
@@ -61,7 +61,7 @@ export function areaImportacao(alvo, { cliente = null, aoTerminar } = {}) {
           it.leitura = `Extrato${o.conta ? ' conta ' + o.conta : ''} · ${o.lancamentos} lançamentos${o.inicio ? ' · ' + o.inicio.split('-').reverse().join('/') + ' a ' + o.fim.split('-').reverse().join('/') : ''}`;
           const c = classificar(f.name); if (!it.cli && c.cnpj) it.cli = achaCli(c.cnpj);
         } else {
-          const c = classificar(f.name); it.tipo = c.tipo; it.dep = DEP_DO_TIPO[c.tipo]; if (c.competencia) it.comp = c.competencia;
+          const c = classificar(f.name); it.tipo = c.tipo; it.dep = DEP_DO_TIPO[c.tipo] || depPadrao; if (c.competencia) it.comp = c.competencia;
           if (!it.cli && c.cnpj) it.cli = achaCli(c.cnpj);
           it.leitura = c.tipo === 'outro' ? 'Tipo pelo nome do arquivo: não identificado' : 'Tipo pelo nome do arquivo';
         }

@@ -57,7 +57,10 @@ create table if not exists public.clientes (
   email_financeiro      text,
   telefone              text,
   tem_funcionarios      boolean not null default false,
-  resp_fiscal           uuid references public.perfis(id) on delete set null,
+  porte                 text,                     -- mei, me, epp, demais
+  atividade             text,                     -- comercio, servico, industria, misto, rural, outro
+  codigo                text,                     -- código no sistema da folha
+  resp_fiscal          uuid references public.perfis(id) on delete set null,
   resp_dp               uuid references public.perfis(id) on delete set null,
   resp_contabil         uuid references public.perfis(id) on delete set null,
   observacoes           text,
@@ -326,3 +329,35 @@ create policy docs_envia on storage.objects for insert to authenticated
   with check (bucket_id = 'documentos' and public.e_equipe());
 create policy docs_apaga on storage.objects for delete to authenticated
   using (bucket_id = 'documentos' and public.e_equipe() and (owner = auth.uid() or public.e_admin()));
+
+-- ---------- Departamento Pessoal: cadastro da empresa (convenção coletiva) ----------
+-- Cadastro de cada empresa no DP: convenção coletiva e regras do dia a dia
+create table if not exists public.dp_empresas (
+  cliente_id                 uuid primary key references public.clientes(id) on delete cascade,
+  sindicato                  text,
+  cct_registro               text,
+  cct_vigencia_ini           date,
+  cct_vigencia_fim           date,
+  data_base_mes              int check (data_base_mes between 1 and 12),
+  piso_salarial              numeric(12,2),
+  contribuicao_assistencial  text,
+  jornada_semanal            numeric(5,2),
+  horario_padrao             text,
+  he_dia_util                numeric(5,2),
+  he_domingo                 numeric(5,2),
+  adicional_noturno          numeric(5,2),
+  vr_dia                     numeric(10,2),
+  vt_dia                     numeric(10,2),
+  observacoes                text,
+  atualizado_em              timestamptz not null default now()
+);
+
+alter table public.dp_empresas enable row level security;
+drop policy if exists equipe_le on public.dp_empresas;
+drop policy if exists equipe_insere on public.dp_empresas;
+drop policy if exists equipe_altera on public.dp_empresas;
+drop policy if exists admin_apaga on public.dp_empresas;
+create policy equipe_le on public.dp_empresas for select to authenticated using (public.e_equipe());
+create policy equipe_insere on public.dp_empresas for insert to authenticated with check (public.e_equipe());
+create policy equipe_altera on public.dp_empresas for update to authenticated using (public.e_equipe()) with check (public.e_equipe());
+create policy admin_apaga on public.dp_empresas for delete to authenticated using (public.e_admin());

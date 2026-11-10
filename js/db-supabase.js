@@ -147,6 +147,15 @@ export default {
   async excluirFalta(id) { ok(await sb.from('faltas').delete().eq('id', id)); },
   async registrarLink(meta) { return ok(await sb.from('documentos').insert(limpa({ ...meta, caminho: 'link:' + crypto.randomUUID(), enviado_por: uid })).select().single()); },
 
+  async dpEmpresas() { return ok(await sb.from('dp_empresas').select('*')); },
+  async salvarDpEmpresa(o) { return ok(await sb.from('dp_empresas').upsert(limpa({ ...o, atualizado_em: new Date().toISOString() })).select().single()); },
+  async movimentacoes({ cliente_id } = {}) { return todas(() => { let q = sb.from('movimentacoes').select('*'); if (cliente_id) q = q.eq('cliente_id', cliente_id); return q.order('prazo').order('id'); }); },
+  async salvarMovimentacao(m) {
+    const d = limpa(m); if (d.id) return ok(await sb.from('movimentacoes').update(d).eq('id', d.id).select().single());
+    delete d.id; return ok(await sb.from('movimentacoes').insert({ ...d, criado_por: uid }).select().single());
+  },
+  async excluirMovimentacao(id) { ok(await sb.from('movimentacoes').delete().eq('id', id)); },
+
   // ---------- histórico ----------
   async historico({ cliente_id, limite = 50 } = {}) {
     let q = sb.from('historico').select('*').order('em', { ascending: false }).limit(limite); if (cliente_id) q = q.eq('cliente_id', cliente_id); return ok(await q);

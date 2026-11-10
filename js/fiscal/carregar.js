@@ -39,6 +39,8 @@ async function iniciar() {
   if (!u) { location.href = 'index.html'; return; }
   const clientes = (await db.clientes()).filter((c) => c.ativo);
   const params = new URLSearchParams(location.search);
+  // dentro do sistema (aba Painel Fiscal) a empresa vem da barra do topo: esconde o seletor e o "voltar"
+  if (params.get('embed')) { document.querySelector('.voltar-sistema')?.remove(); document.getElementById('filtroCliente').closest('.nav-group').hidden = true; }
   let cid = params.get('cliente');
   if (!clientes.some((c) => c.id === cid)) cid = clientes[0]?.id;
   const sel = document.getElementById('filtroCliente');

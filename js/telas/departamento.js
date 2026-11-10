@@ -1,21 +1,22 @@
 // Tela de um departamento: matriz clientes x obrigações da competência.
 import db from '../db.js';
 import { esc, DEPS, REGIMES, nomeComp, atrasada, diasAte, semAcento, iniciais, brl, num, dataBR, aviso, confirmar, baixarArquivo, STATUS, TIPOS_DOC } from '../util.js';
-import { S, tarefasDa, ativos, nomeCliente, nomePerfil, trocarTarefaNoCache } from '../estado.js';
+import { S, tarefasDa, ativos, nomeCliente, nomePerfil, trocarTarefaNoCache, daEmpresa } from '../estado.js';
 import { topo, irPara, recarregarTela, atualizarContadores } from '../app.js';
 import { bannerGerar, abrirTarefa, prazoTxt, rotStatus, clsStatus } from './comum.js';
 
 const F = {}; // filtros por departamento: { busca, sit, resp, regime, vista }
 const ICS = { concluida: '✓', andamento: '◐', pendente: '○', nao_aplica: '–' };
 
-export default async function departamento(el, [dep], vivo) {
-  if (!DEPS[dep]) return irPara('#/painel');
+export default async function departamento(el, _r, vivo, ctx = {}) {
+  const dep = ctx.dep; const area = ctx.area;
+  if (!DEPS[dep]) return irPara('#/');
   const f = F[dep] ||= { busca: '', sit: 'todos', resp: '', regime: '', vista: 'matriz' };
-  topo(DEPS[dep].longo, `Competência ${nomeComp(S.comp)}`);
-  const [todas, docs, notas] = await Promise.all([tarefasDa(S.comp), db.documentos({ competencia: S.comp, departamento: dep }), dep === 'fiscal' ? db.notas({ competencia: S.comp }) : []]);
+  topo(dep === 'dp' ? 'Obrigações do mês' : 'Visão geral', `Tarefas de ${nomeComp(S.comp)}${S.empresa ? '' : ' · todas as empresas'}`);
+  const [todas, docs0, notas] = await Promise.all([tarefasDa(S.comp), db.documentos({ competencia: S.comp, departamento: dep }), dep === 'fiscal' ? db.notas({ competencia: S.comp }) : []]);
   if (!vivo()) return;
-  const T = todas.filter((t) => t.departamento === dep);
-  const cli = ativos();
+  const T = todas.filter((t) => t.departamento === dep && daEmpresa(t.cliente_id));
+  const cli = ativos().filter((c) => daEmpresa(c.id));
 
   // colunas = obrigações que existem nas tarefas do mês (na ordem cadastrada)
   const ordem = new Map(S.obrigacoes.map((o, i) => [o.id, o.ordem * 1000 + i]));
@@ -82,7 +83,7 @@ export default async function departamento(el, [dep], vivo) {
       return;
     }
     $c('#dCorpo').innerHTML = `<table class="t mx"><thead><tr><th style="min-width:220px">Cliente · ${L.length}</th>${cols.map((c) => `<th class="ob" title="${esc(c.nome)}"><button class="btn-col" data-col="${esc(c.k)}" style="border:0;background:none;padding:0;font:inherit;color:inherit;text-transform:inherit;letter-spacing:inherit;text-align:left;cursor:pointer" title="Ações para a coluna">${esc(c.nome)} ▾</button></th>`).join('')}</tr></thead>
-      <tbody>${L.map((c) => { const m = porCli.get(c.id); return `<tr><td><a class="co" href="#/cliente/${c.id}" style="text-decoration:none;color:inherit"><span class="av">${esc(iniciais(c.nome_fantasia || c.razao_social))}</span><div><b>${esc(c.nome_fantasia || c.razao_social)}</b><span>${REGIMES[c.regime]}</span></div></a></td>${cols.map((col) => celula(m.get(col.k))).join('')}</tr>`; }).join('') || `<tr><td colspan="${cols.length + 1}"><div class="vazio">Nenhum cliente com esse filtro.</div></td></tr>`}</tbody></table>`;
+      <tbody>${L.map((c) => { const m = porCli.get(c.id); return `<tr><td><a class="co" href="#/cadastros/empresa/${c.id}" style="text-decoration:none;color:inherit"><span class="av">${esc(iniciais(c.nome_fantasia || c.razao_social))}</span><div><b>${esc(c.nome_fantasia || c.razao_social)}</b><span>${REGIMES[c.regime]}</span></div></a></td>${cols.map((col) => celula(m.get(col.k))).join('')}</tr>`; }).join('') || `<tr><td colspan="${cols.length + 1}"><div class="vazio">Nenhum cliente com esse filtro.</div></td></tr>`}</tbody></table>`;
   };
   const tudo = () => { kpis(); corpo(); atualizarContadores(); };
   tudo();
@@ -119,7 +120,7 @@ export default async function departamento(el, [dep], vivo) {
   if (dep === 'fiscal') {
     // mesmo critério do Painel Fiscal: Venda − Devolução, canceladas fora
     const ag = new Map();
-    notas.forEach((n) => {
+    notas.filter((n) => daEmpresa(n.cliente_id)).forEach((n) => {
       const a = ag.get(n.cliente_id) || { qv: 0, v: 0, d: 0, canc: 0, difal: 0, frete: 0, icms: 0, iss: 0 };
       if (n.cancelada) a.canc++;
       else {
@@ -130,16 +131,17 @@ export default async function departamento(el, [dep], vivo) {
       ag.set(n.cliente_id, a);
     });
     const tot = [...ag.values()].reduce((t, a) => { Object.keys(a).forEach((k) => { t[k] = (t[k] || 0) + a[k]; }); return t; }, {});
-    $c('#dNotas').innerHTML = `<div class="card-h"><h2>Resumo das notas · ${nomeComp(S.comp)}</h2><div class="barra-f"><a class="btn sec mini" href="#/documentos">Importar XML</a><a class="btn mini" href="fiscal.html">Abrir Painel Fiscal</a></div></div>
+    $c('#dNotas').innerHTML = `<div class="card-h"><h2>Resumo das notas · ${nomeComp(S.comp)}</h2><div class="barra-f"><a class="btn sec mini" href="#/${area}/importar">Importar XML</a><a class="btn mini" href="#/fiscal/painel">Abrir Painel Fiscal</a></div></div>
       ${ag.size ? `<div class="tw"><table class="t"><thead><tr><th>Cliente</th><th class="r">Vendas</th><th class="r">Valor vendas</th><th class="r">Devoluções</th><th class="r">Líquido</th><th class="r">ICMS</th><th class="r">ISS</th><th class="r">DIFAL + FCP</th><th class="r">Fretes</th><th class="r">Canceladas</th><th></th></tr></thead><tbody>
-      ${[...ag.entries()].sort((a, b) => b[1].v - a[1].v).map(([cid, a]) => `<tr><td><b>${esc(nomeCliente(cid))}</b></td><td class="r num">${num(a.qv)}</td><td class="r num">${brl(a.v)}</td><td class="r num">${brl(a.d)}</td><td class="r num"><b>${brl(a.v - a.d)}</b></td><td class="r num">${brl(a.icms)}</td><td class="r num">${brl(a.iss)}</td><td class="r num">${brl(a.difal)}</td><td class="r num">${brl(a.frete)}</td><td class="r num">${a.canc || ''}</td><td><a class="btn sec mini" href="fiscal.html?cliente=${cid}">Painel Fiscal</a></td></tr>`).join('')}
+      ${[...ag.entries()].sort((a, b) => b[1].v - a[1].v).map(([cid, a]) => `<tr><td><b>${esc(nomeCliente(cid))}</b></td><td class="r num">${num(a.qv)}</td><td class="r num">${brl(a.v)}</td><td class="r num">${brl(a.d)}</td><td class="r num"><b>${brl(a.v - a.d)}</b></td><td class="r num">${brl(a.icms)}</td><td class="r num">${brl(a.iss)}</td><td class="r num">${brl(a.difal)}</td><td class="r num">${brl(a.frete)}</td><td class="r num">${a.canc || ''}</td><td><a class="btn sec mini" href="#/fiscal/painel/${cid}">Painel Fiscal</a></td></tr>`).join('')}
       <tr><td><b>Total</b></td><td class="r num"><b>${num(tot.qv)}</b></td><td class="r num"><b>${brl(tot.v)}</b></td><td class="r num"><b>${brl(tot.d)}</b></td><td class="r num"><b>${brl(tot.v - tot.d)}</b></td><td class="r num"><b>${brl(tot.icms)}</b></td><td class="r num"><b>${brl(tot.iss)}</b></td><td class="r num"><b>${brl(tot.difal)}</b></td><td class="r num"><b>${brl(tot.frete)}</b></td><td class="r num"><b>${tot.canc || ''}</b></td><td></td></tr></tbody></table></div>`
       : '<div class="vazio"><b>Nenhuma nota importada neste mês</b>Importe os XML na tela Documentos: o sistema identifica o cliente pelo CNPJ e monta o Painel Fiscal dele.</div>'}`;
   }
 
   // documentos do mês deste departamento
+  const docs = docs0.filter((d) => daEmpresa(d.cliente_id));
   const porTipo = {}; docs.forEach((d) => { porTipo[d.tipo] = (porTipo[d.tipo] || 0) + 1; });
-  $c('#dDocs').innerHTML = `<div class="card-h"><h2>Documentos recebidos · ${nomeComp(S.comp)}</h2><a class="btn sec mini" href="#/documentos">Importar documentos</a></div>
+  $c('#dDocs').innerHTML = `<div class="card-h"><h2>Documentos recebidos · ${nomeComp(S.comp)}</h2><a class="btn sec mini" href="#/${area}/importar">Importar documentos</a></div>
     ${docs.length ? `<div class="card-b leg" style="font-size:13px">${Object.entries(porTipo).map(([t, n]) => `<span class="pill p-${dep}">${n} · ${TIPOS_DOC[t] || t}</span>`).join('')}</div>
     <div class="tw" style="max-height:360px;overflow:auto"><table class="t"><thead><tr><th>Arquivo</th><th>Cliente</th><th>Tipo</th><th>Enviado</th></tr></thead><tbody>${docs.slice(0, 200).map((d) => `<tr><td>${esc(d.nome_arquivo)}</td><td>${esc(nomeCliente(d.cliente_id))}</td><td>${TIPOS_DOC[d.tipo] || d.tipo}</td><td class="small muted">${dataBR(d.enviado_em)} · ${esc(nomePerfil(d.enviado_por))}</td></tr>`).join('')}</tbody></table></div>`
     : '<div class="vazio">Nenhum documento deste departamento em ' + nomeComp(S.comp) + '.</div>'}`;

@@ -9,20 +9,20 @@ let filtroCli = '', busca = '', sit = 'ativos';
 const SIT = { ativo: 'Ativo', afastado: 'Afastado', desligado: 'Desligado' };
 
 export default async function funcionarios(el, _p, vivo) {
-  topo('Funcionários', 'Cadastro dos funcionários dos clientes · base do painel de Férias');
+  filtroCli = S.empresa || '';
+  topo('Colaboradores', 'Cadastro dos colaboradores · base das Férias, Experiência e VR/VT');
   const [L, F] = await Promise.all([db.funcionarios(), db.faltas()]); if (!vivo()) return;
   const clis = S.clientes.filter((c) => c.ativo).sort((a, b) => (a.nome_fantasia || a.razao_social).localeCompare(b.nome_fantasia || b.razao_social));
   el.innerHTML = `<div class="card"><div class="card-h"><div class="barra-f">
-      <label class="sr" for="fuCli">Cliente</label><select id="fuCli"><option value="">Todos os clientes</option>${clis.map((c) => `<option value="${c.id}" ${filtroCli === c.id ? 'selected' : ''}>${esc(c.nome_fantasia || c.razao_social)}</option>`).join('')}</select>
+      <label class="sr" for="fuCli">Cliente</label><select id="fuCli" hidden><option value="">Todos os clientes</option>${clis.map((c) => `<option value="${c.id}" ${filtroCli === c.id ? 'selected' : ''}>${esc(c.nome_fantasia || c.razao_social)}</option>`).join('')}</select>
       <label class="sr" for="fuBusca">Buscar</label><input type="search" id="fuBusca" placeholder="Nome, cargo ou setor" value="${esc(busca)}">
       <div class="seg" role="group" aria-label="Situação">${[['ativos', 'Ativos'], ['desligados', 'Desligados'], ['todos', 'Todos']].map(([k, t]) => `<button data-sit="${k}" aria-pressed="${sit === k}">${t}</button>`).join('')}</div></div>
-     <div class="barra-f"><a class="btn sec" id="fuFerias" href="ferias.html">Abrir painel de Férias</a><button class="btn sec" id="fuImp">Importar planilha</button><button class="btn" id="fuNovo">+ Novo funcionário</button></div></div>
+     <div class="barra-f"><a class="btn sec" id="fuFerias" href="#/pessoal/ferias">Ver férias</a><button class="btn sec" id="fuImp">Importar planilha</button><button class="btn" id="fuNovo">+ Novo colaborador</button></div></div>
     <div class="tw"><table class="t"><thead><tr><th>Funcionário</th><th>Cliente</th><th>Cargo · setor</th><th>Admissão</th><th>Férias quitadas até</th><th>Faltas</th><th>Situação</th></tr></thead><tbody id="fuCorpo"></tbody></table></div></div>`;
   const $c = (s) => el.querySelector(s);
   const corpo = () => {
     const q = semAcento(busca);
     const l = L.filter((f) => (!filtroCli || f.cliente_id === filtroCli) && (sit === 'todos' || (sit === 'ativos') === (f.situacao !== 'desligado')) && (!q || semAcento(`${f.nome} ${f.cargo || ''} ${f.setor || ''}`).includes(q)));
-    $c('#fuFerias').href = 'ferias.html' + (filtroCli ? '?cliente=' + filtroCli : '');
     $c('#fuCorpo').innerHTML = l.map((f) => { const nf = F.filter((x) => x.funcionario_id === f.id).reduce((s, x) => s + (+x.quantidade || 0), 0); return `<tr class="lk" data-id="${f.id}"><td><b>${esc(f.nome)}</b>${f.codigo ? `<div class="small muted">cód. ${esc(f.codigo)}</div>` : ''}</td><td>${esc(nomeCliente(f.cliente_id))}</td><td>${esc(f.cargo || '—')}<div class="small muted">${esc(f.setor || '')}</div></td><td class="num">${f.admissao ? dataBR(f.admissao) : '<span class="pill p-bad">falta</span>'}</td><td class="num">${f.ferias_ate ? dataBR(f.ferias_ate) : '<span class="muted">—</span>'}</td><td class="num">${nf || ''}</td><td><span class="pill ${f.situacao === 'ativo' ? 'p-ok' : f.situacao === 'afastado' ? 'p-at' : 'p-na'}">${SIT[f.situacao]}</span></td></tr>`; }).join('')
       || `<tr><td colspan="7"><div class="vazio">${L.length ? 'Nenhum funcionário com esse filtro.' : '<b>Nenhum funcionário cadastrado</b>Cadastre um por um ou importe uma planilha com todos de uma vez.'}</div></td></tr>`;
   };
@@ -38,7 +38,7 @@ export default async function funcionarios(el, _p, vivo) {
 function formFuncionario(f, faltas) {
   const v = (k) => esc(f[k] ?? '');
   const minhas = faltas.filter((x) => x.funcionario_id === f.id);
-  return modal(f.id ? 'Editar funcionário' : 'Novo funcionário', `<form class="form" id="fFu">
+  return modal(f.id ? 'Editar colaborador' : 'Novo colaborador', `<form class="form" id="fFu">
     <label class="f full">Cliente *<select name="cliente_id" required><option value="">Escolha…</option>${S.clientes.filter((c) => c.ativo).map((c) => `<option value="${c.id}" ${f.cliente_id === c.id ? 'selected' : ''}>${esc(c.nome_fantasia || c.razao_social)}</option>`).join('')}</select></label>
     <label class="f full">Nome completo *<input name="nome" required value="${v('nome')}"></label>
     <label class="f">CPF<input name="cpf" inputmode="numeric" value="${v('cpf')}"></label>
@@ -47,6 +47,8 @@ function formFuncionario(f, faltas) {
     <label class="f">Setor<input name="setor" value="${v('setor')}"></label>
     <label class="f">Admissão *<input type="date" name="admissao" value="${v('admissao')}"></label>
     <label class="f">Férias quitadas até<input type="date" name="ferias_ate" value="${v('ferias_ate')}"><span class="small muted" style="font-weight:400">Fim do último período aquisitivo já gozado. Os anteriores contam como quitados.</span></label>
+    <label class="f">Contrato de experiência<select name="exp">${[['', 'Sem experiência'], ['45/90', '45 + 45 dias'], ['30/90', '30 + 60 dias'], ['/90', '90 dias direto'], ['30/60', '30 + 30 dias'], ['/45', '45 dias'], ['/30', '30 dias']].map(([k, t]) => `<option value="${k}" ${(f.exp_dias_total ? `${f.exp_dias_1 || ''}/${f.exp_dias_total}` : '') === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+    <label class="f">Salário (R$)<input type="number" step="0.01" name="salario" value="${v('salario')}"></label>
     <label class="f">Situação<select name="situacao">${Object.entries(SIT).map(([k, t]) => `<option value="${k}" ${(f.situacao || 'ativo') === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
     <label class="f">Desligamento<input type="date" name="desligamento" value="${v('desligamento')}"></label>
     <label class="f full">Observações<textarea name="observacoes" style="min-height:56px">${v('observacoes')}</textarea></label>
@@ -60,6 +62,8 @@ function formFuncionario(f, faltas) {
       e.preventDefault(); const d = Object.fromEntries(new FormData(fm));
       if (!d.cliente_id || !d.nome.trim()) return (m.querySelector('#fuErro').textContent = 'Informe o cliente e o nome.');
       if (!d.admissao) return (m.querySelector('#fuErro').textContent = 'Informe a data de admissão (sem ela não dá para calcular as férias).');
+      const [e1, et] = (d.exp || '').split('/'); d.exp_dias_1 = +e1 || null; d.exp_dias_total = +et || null; delete d.exp;
+      d.salario = d.salario === '' ? null : +d.salario;
       d.cpf = soDigitos(d.cpf); Object.keys(d).forEach((k) => { if (d[k] === '') d[k] = null; });
       try { await db.salvarFuncionario({ ...(f.id ? { id: f.id } : {}), ...d }); await db.registrar(f.id ? 'Editou funcionário' : 'Cadastrou funcionário', d.nome, d.cliente_id); aviso('Funcionário salvo.'); fechar(true); }
       catch (er) { m.querySelector('#fuErro').textContent = er.message; }

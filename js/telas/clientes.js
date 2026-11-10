@@ -8,7 +8,7 @@ import { lerPlanilha, mapearColunas, linhasParaClientes } from '../leitor.js';
 let busca = '', reg = '', sit = 'ativos';
 
 export default async function clientes(el) {
-  topo('Clientes', `${S.clientes.filter((c) => c.ativo).length} ativos · ${S.clientes.length} no total`);
+  topo('Empresas (clientes)', `${S.clientes.filter((c) => c.ativo).length} ativos · ${S.clientes.length} no total`);
   el.innerHTML = `<div class="card">
     <div class="card-h"><div class="barra-f">
       <label class="sr" for="cBusca">Buscar</label><input type="search" id="cBusca" placeholder="Nome, fantasia ou CNPJ" value="${esc(busca)}">
@@ -35,8 +35,8 @@ export default async function clientes(el) {
   $c('#cBusca').addEventListener('input', (e) => { busca = e.target.value; corpo(); });
   $c('#cReg').addEventListener('change', (e) => { reg = e.target.value; corpo(); });
   el.querySelectorAll('[data-sit]').forEach((b) => b.addEventListener('click', () => { sit = b.dataset.sit; el.querySelectorAll('[data-sit]').forEach((x) => x.setAttribute('aria-pressed', x === b)); corpo(); }));
-  $c('#cCorpo').addEventListener('click', (e) => { const r = e.target.closest('[data-id]'); if (r) irPara('#/cliente/' + r.dataset.id); });
-  $c('#cNovo').addEventListener('click', async () => { const n = await formCliente(); if (n) irPara('#/cliente/' + n.id); });
+  $c('#cCorpo').addEventListener('click', (e) => { const r = e.target.closest('[data-id]'); if (r) irPara('#/cadastros/empresa/' + r.dataset.id); });
+  $c('#cNovo').addEventListener('click', async () => { const n = await formCliente(); if (n) irPara('#/cadastros/empresa/' + n.id); });
   $c('#cImp').addEventListener('click', async () => { if (await importarPlanilha()) clientes(el); });
   $c('#cExp').addEventListener('click', () => {
     const cab = ['Razão social', 'Nome fantasia', 'CNPJ', 'Regime', 'Inscrição estadual', 'Inscrição municipal', 'E-mail', 'E-mail DP', 'E-mail financeiro', 'Telefone', 'Funcionários', 'Ativo', 'Observações'];

@@ -11,8 +11,8 @@ import { editarDocumento, resumoDados } from './documentos.js';
 let aba = 'mes';
 
 export default async function fichaCliente(el, [id], vivo) {
-  const c = achaCliente(id); if (!c) { el.innerHTML = '<div class="card"><div class="vazio"><b>Cliente não encontrado</b><a href="#/clientes">Voltar para a lista</a></div></div>'; return; }
-  topo(c.nome_fantasia || c.razao_social, `<a href="#/clientes">Clientes</a> › ${esc(c.razao_social)}`);
+  const c = achaCliente(id); if (!c) { el.innerHTML = '<div class="card"><div class="vazio"><b>Cliente não encontrado</b><a href="#/cadastros/clientes">Voltar para a lista</a></div></div>'; return; }
+  topo(c.nome_fantasia || c.razao_social, `<a href="#/cadastros/clientes">Empresas</a> › ${esc(c.razao_social)}`);
   const T = (await tarefasDa(S.comp)).filter((t) => t.cliente_id === id); if (!vivo()) return;
 
   el.innerHTML = `<div class="card">
@@ -45,7 +45,7 @@ export default async function fichaCliente(el, [id], vivo) {
     },
     async notas() {
       const N = await db.notas({ cliente_id: id });
-      const ab = `<a class="btn" href="fiscal.html?cliente=${id}">Abrir o Painel Fiscal deste cliente</a>`;
+      const ab = `<a class="btn" href="#/fiscal/painel/${id}">Abrir o Painel Fiscal deste cliente</a>`;
       if (!N.length) return `<div class="vazio"><b>Nenhuma nota importada ainda</b><p style="margin:6px 0 14px">Importe os XML na aba Documentos e o Painel Fiscal se monta sozinho.</p>${ab}</div>`;
       const mes = N.filter((n) => String(n.data || '').startsWith(S.comp) && !n.cancelada), soma = (l) => l.reduce((a, n) => a + (+n.valor_nf || 0), 0);
       const vend = mes.filter((n) => n.categoria === 'Venda'), dev = mes.filter((n) => n.categoria === 'Devolução');
@@ -93,6 +93,6 @@ export default async function fichaCliente(el, [id], vivo) {
   $c('#fEdita').addEventListener('click', async () => { if (await formCliente(c)) fichaCliente(el, [id], vivo); });
   $c('#fApaga')?.addEventListener('click', async () => {
     if (!(await confirmar('Excluir cliente', `Excluir ${c.razao_social}? Saem também as tarefas e as notas dele. Os arquivos ficam em Documentos como "Sem cliente". Prefira marcar como inativo se o cliente só saiu do escritório.`, 'Excluir cliente'))) return;
-    try { await db.excluirCliente(id); await db.registrar('Excluiu cliente', c.razao_social); await recarregarClientes(); limparCacheTarefas(); aviso('Cliente excluído.'); irPara('#/clientes'); } catch (er) { aviso(er.message, 'erro'); }
+    try { await db.excluirCliente(id); await db.registrar('Excluiu cliente', c.razao_social); await recarregarClientes(); limparCacheTarefas(); aviso('Cliente excluído.'); irPara('#/cadastros/clientes'); } catch (er) { aviso(er.message, 'erro'); }
   });
 }
