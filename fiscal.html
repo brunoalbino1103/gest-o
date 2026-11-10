@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel Fiscal · Sistema Contábil</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs@5.0.2/dist/theme/mermaid.min.css" integrity="sha384-jZvDSsmGB9oGGT/4l9bHXGoAv1OxvG/cFmSo0dZaSqmBgvQTKDBFAMftlXTmMbNW" crossorigin="anonymous">
+<style>
+  
+  
+  
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #f6f7f9;
+    font-family: 'Poppins', Arial, Helvetica, sans-serif; color: #1f2937;
+  }
+  h1 { font-size: 17px; margin: 0; color: #1f2937; }
+  .brand-sub { font-size: 11px; color: #0090D0; font-weight: 600; margin-top: -6px; }
+  .app-shell { display: flex; align-items: flex-start; min-height: 100vh; }
+
+  .sidebar {
+    width: 232px; flex-shrink: 0; background: #fff; border-right: 1px solid #e5e7eb;
+    padding: 20px 14px; position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  }
+  .brand-header {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+    padding-bottom: 16px; margin-bottom: 14px; border-bottom: 3px solid #0090D0;
+  }
+  .brand-header img { height: 40px; width: auto; }
+  .nav-group { margin-bottom: 18px; }
+  .nav-group-label {
+    font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase;
+    letter-spacing: .06em; padding: 0 10px 6px 10px;
+  }
+  .tab-btn {
+    display: block; width: 100%; text-align: left; background: none; border: none;
+    padding: 9px 10px; font-size: 13px; font-weight: 600; border-radius: 7px;
+    color: #4b5563; cursor: pointer; margin-bottom: 2px;
+  }
+  .tab-btn:hover { background: #f3f4f6; }
+  .tab-btn.active { color: #fff; background: #0090D0; }
+  .mes-seletor {
+    width: 100%; padding: 9px 10px; border: 2px solid #0090D0; border-radius: 7px;
+    font-size: 13px; font-weight: 600; color: #0090D0; background: #f0f9ff; cursor: pointer;
+  }
+
+  .main-content { flex: 1; padding: 24px 28px; min-width: 0; }
+  .subtitle { color: #6b7280; font-size: 13px; margin: 0 0 16px 0; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .panel-title { font-size: 18px; font-weight: 700; color: #1f2937; margin: 0 0 4px 0; }
+  .panel-desc { font-size: 12px; color: #6b7280; margin: 0 0 18px 0; }
+
+  .destaques { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+  .destaque-card {
+    background: linear-gradient(135deg, #0090D0 0%, #067bb3 100%); color: #fff;
+    border-radius: 10px; padding: 14px 16px;
+  }
+  .destaque-card .label { font-size: 11px; opacity: 0.85; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .03em; }
+  .destaque-card .value { font-size: 16px; font-weight: 700; }
+  .destaque-card .sub { font-size: 11px; opacity: 0.85; margin-top: 4px; }
+
+  .difal-month-group { border: 1px solid #dbeafe; border-radius: 10px; margin-bottom: 12px; background: #fff; overflow: hidden; }
+  .difal-month-group > summary { padding: 12px 16px; background: #eff6ff; }
+  .difal-days-wrap { padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .difal-day-group {
+    border: 1px solid #e5e7eb; border-radius: 8px; background: #fff;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .difal-day-group[open] { border-color: #bfdbfe; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .difal-day-group > summary { padding: 10px 12px; }
+  .difal-day-group:hover > summary { background: #f9fafb; }
+  .difal-month-group summary, .difal-day-group summary {
+    cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+    list-style: none; font-size: 13px; gap: 12px; border-radius: inherit;
+  }
+  .difal-month-group summary::-webkit-details-marker, .difal-day-group summary::-webkit-details-marker { display: none; }
+  .difal-summary-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .difal-chevron {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; flex: none; color: #9ca3af;
+    transition: transform .15s;
+  }
+  details[open] > summary .difal-chevron { transform: rotate(90deg); color: #2563eb; }
+  .difal-summary-right { display: flex; align-items: center; gap: 10px; flex: none; }
+  .difal-month-label { font-weight: 700; color: #1e3a8a; font-size: 14px; }
+  .difal-day-date { font-weight: 600; color: #1f2937; }
+  .difal-day-weekday { color: #9ca3af; font-weight: 400; font-size: 12px; margin-left: 4px; }
+  .difal-day-qtd { color: #9ca3af; font-size: 12px; }
+  .difal-total-amount { font-weight: 600; color: #374151; font-variant-numeric: tabular-nums; }
+  .difal-pago-pill {
+    display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px;
+    border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap;
+  }
+  .difal-pago-pill.all-paid { background: #dcfce7; color: #166534; }
+  .difal-pago-pill.none-paid { background: #f3f4f6; color: #6b7280; }
+  .difal-pago-pill.partial-paid { background: #fef3c7; color: #92400e; }
+  .difal-nota-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .difal-nota-table th { text-align: left; padding: 7px 12px; color: #9ca3af; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; border-bottom: 1px solid #f3f4f6; }
+  .difal-nota-table td { padding: 7px 12px; border-bottom: 1px solid #f9fafb; }
+  .difal-nota-table tbody tr:last-child td { border-bottom: none; }
+  .difal-nota-row { cursor: pointer; }
+  .difal-nota-row:hover { background: #f0f9ff; }
+
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 22px; }
+  .kpi { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; border-top: 3px solid #909090; cursor: default; }
+  .kpi .label { font-size: 12px; color: #6b7280; margin-bottom: 6px; }
+  .kpi .value { font-size: 20px; font-weight: 700; color: #111827; }
+  .kpi .sub { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+  .kpi.venda { border-top-color: #0090D0; }
+  .kpi.venda .value { color: #0090D0; }
+  .kpi.devolucao { border-top-color: #b91c1c; }
+  .kpi.devolucao .value { color: #b91c1c; }
+  .kpi.icms { border-top-color: #92400e; }
+  .kpi.icms .value { color: #92400e; }
+  .kpi.liquido { border-top-color: #065f46; }
+  .kpi.liquido .value { color: #065f46; }
+  .kpi.cancelada { border-top-color: #991b1b; background: #fef2f2; cursor: pointer; }
+  .kpi.cancelada .value { color: #991b1b; }
+  .kpi.cancelada:hover { background: #fee2e2; }
+  .grid2 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; }
+  .card h2 { font-size: 14px; margin: 0 0 12px 0; color: #374151; }
+  .chart-wrap { position: relative; height: 260px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #f0f1f3; }
+  th { color: #6b7280; font-weight: 600; position: sticky; top: 0; background: #fff; }
+  tr:hover td { background: #fafafa; }
+  .scroll-table { max-height: 260px; overflow-y: auto; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; }
+  .badge.pos { background:#dcfce7; color:#166534; }
+  .badge.neg { background:#fee2e2; color:#991b1b; }
+  .footer-note { font-size: 11px; color: #9ca3af; margin-top: 18px; }
+
+  .notes-toolbar { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+  .notes-toolbar select {
+    padding: 7px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; background: #fff;
+  }
+  .notes-toolbar select.filtro-destaque {
+    border: 2px solid #0090D0; font-weight: 500; color: #0090D0; background: #f0f9ff;
+  }
+  .notes-count { font-size: 12px; color: #6b7280; }
+  #gridNotas { font-size: 12px; }
+  #gridNotas td { cursor: pointer; }
+  .gridjs-th { font-size: 12px; }
+  .gridjs-td { font-size: 12px; padding: 8px; }
+
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(17,24,39,0.45);
+    align-items: center; justify-content: center; z-index: 1000;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: #fff; border-radius: 12px; width: 560px; max-width: 92vw; max-height: 85vh;
+    overflow-y: auto; padding: 22px 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+  }
+  .modal h3 { margin: 0 0 4px 0; font-size: 16px; color: #111827; }
+  .modal .modal-sub { font-size: 12px; color: #6b7280; margin-bottom: 16px; }
+  .modal-close {
+    float: right; border: none; background: #f3f4f6; border-radius: 8px; width: 28px; height: 28px;
+    cursor: pointer; font-size: 15px; color: #374151;
+  }
+  .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; margin-bottom: 14px; }
+  .modal-field { border-bottom: 1px dashed #eef0f2; padding-bottom: 6px; }
+  .modal-field .fl { font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: .03em; }
+  .modal-field .fv { font-size: 13px; color: #111827; font-weight: 600; margin-top: 2px; word-break: break-word; }
+  .modal-section-title { font-size: 12px; font-weight: 700; color: #374151; margin: 16px 0 8px 0; text-transform: uppercase; letter-spacing: .03em; }
+  .tax-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .tax-chip { background: #f8fafc; border: 1px solid #eef0f2; border-radius: 8px; padding: 8px 10px; }
+  .tax-chip .fl { font-size: 10px; color: #9ca3af; }
+  .tax-chip .fv { font-size: 13px; font-weight: 700; color: #111827; }
+
+  .rank-list { display: flex; flex-direction: column; gap: 8px; }
+  .rank-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 14px; border: 1px solid #eef0f2; border-radius: 8px; background: #fff;
+    transition: background .12s ease;
+  }
+  .rank-item[data-idx] { cursor: pointer; }
+  .rank-item:hover { background: #fafafa; border-color: #e5e7eb; }
+  .rank-num {
+    width: 26px; height: 26px; border-radius: 50%; background: #f0f9ff; color: #0090D0;
+    font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .rank-item.sev-alta .rank-num { background: #fee2e2; color: #991b1b; }
+  .rank-item.sev-media .rank-num { background: #fef3c7; color: #92400e; }
+  .rank-main { flex: 1; min-width: 0; }
+  .rank-title { font-size: 13px; font-weight: 600; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rank-sub { font-size: 11px; color: #6b7280; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rank-side { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .rank-value { font-size: 14px; font-weight: 700; color: #111827; white-space: nowrap; text-align: right; min-width: 76px; }
+  .rank-value.alerta { color: #b91c1c; }
+  .rank-tag { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .rank-tag.alta { background: #fee2e2; color: #991b1b; }
+  .rank-tag.media { background: #fef3c7; color: #92400e; }
+  .rank-tag.baixa { background: #f0f9ff; color: #0090D0; }
+  .alerta-banner {
+    display: none; align-items: flex-start; gap: 10px;
+    background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b;
+    padding: 12px 14px; border-radius: 8px; font-size: 12px; margin-bottom: 14px; line-height: 1.5;
+  }
+  .alerta-banner.show { display: flex; }
+  .alerta-banner .ico { font-size: 16px; line-height: 1; flex-shrink: 0; }
+  .alerta-banner b { font-weight: 700; }
+  #gridCanceladas .gridjs-td, #gridDev .gridjs-td, #gridDevNotas .gridjs-td { padding: 11px 10px; font-size: 12.5px; line-height: 1.4; }
+  #gridCanceladas .gridjs-th, #gridDev .gridjs-th, #gridDevNotas .gridjs-th { padding: 10px; font-size: 12px; }
+  #gridCanceladas .gridjs-tr, #gridDev .gridjs-tr, #gridDevNotas .gridjs-tr { border-bottom: 1px solid #f3f4f6; }
+</style>
+<meta name="google" content="notranslate">
+<style>
+.voltar-sistema{display:inline-block;font-size:11.5px;color:#0090D0;text-decoration:none;margin-bottom:8px;font-weight:600}
+.voltar-sistema:hover{text-decoration:underline}
+#nomeCliente{font-size:11.5px;line-height:1.35;margin-top:4px}
+.aviso-vazio{background:#EAF6FC;border:1px solid #9FD3EC;color:#075985;border-radius:10px;padding:12px 16px;font-size:13px;margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.aviso-vazio a{margin-left:auto;background:#0090D0;color:#fff;border-radius:8px;padding:7px 14px;text-decoration:none;font-weight:600}
+.carregando-fiscal{position:fixed;inset:0;background:rgba(255,255,255,.85);display:grid;place-items:center;font-size:14px;color:#374151;z-index:500}
+</style>
+<link rel="stylesheet" href="css/fontes.css">
+<script src="js/aviso-arquivo.js"></script>
+</head>
+<body>
+<div class="app-shell notranslate" translate="no">
+<div class="sidebar">
+  <div class="brand-header">
+    
+    <a href="index.html#/painel" class="voltar-sistema">‹ Sistema contábil</a><h1>Painel Fiscal</h1>
+    <div class="brand-sub" id="nomeCliente"></div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Cliente</div>
+    <select id="filtroCliente" class="mes-seletor" translate="no"></select>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Período</div>
+    <select id="filtroMes" class="mes-seletor" translate="no"></select>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Geral</div>
+    <button class="tab-btn active" data-tab="visao">Visão Geral</button>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Fiscal</div>
+    <button class="tab-btn" data-tab="notas">Notas Fiscais</button>
+    <button class="tab-btn" data-tab="canceladas">Notas Canceladas</button>
+    <button class="tab-btn" data-tab="devolucoes">Devoluções</button>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Impostos</div>
+    <button class="tab-btn" data-tab="difal">DIFAL por Estado</button>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Estatísticas</div>
+    <button class="tab-btn" data-tab="qualidade">Qualidade de Dados</button>
+    <button class="tab-btn" data-tab="abc">Curva ABC</button>
+    <button class="tab-btn" data-tab="comparativo">Comparativo entre Meses</button>
+    <button class="tab-btn" data-tab="faltantes">Notas Faltando</button>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-label">Logística</div>
+    <button class="tab-btn" data-tab="fretes">Fretes por Estado</button>
+  </div>
+</div>
+
+<div class="main-content">
+<div class="subtitle" id="subtitle">Carregando período...</div>
+
+<div class="tab-panel active" id="tab-visao">
+  <div class="panel-title">Visão Geral</div>
+  <div class="panel-desc">Resumo do período: vendas, devoluções, impostos e destaques.</div>
+  <div class="destaques" id="destaques"></div>
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>Vendas líquidas por dia (Venda − Devolução)</h2>
+      <div class="chart-wrap"><canvas id="chartDiario"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Valor por categoria</h2>
+      <div class="chart-wrap"><canvas id="chartCategoria"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>ICMS por UF de destino (vendas)</h2>
+      <div class="chart-wrap"><canvas id="chartUF"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Resumo diário</h2>
+      <div class="scroll-table">
+        <table>
+          <thead><tr><th>Data</th><th>Venda</th><th>Devol.</th><th>Líquido</th><th>Notas</th></tr></thead>
+          <tbody id="tblDiario"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-panel" id="tab-comparativo">
+  <div class="panel-title">Comparativo entre Meses</div>
+  <div class="panel-desc">Evolução mês a mês: quantidade de vendas, devoluções e notas canceladas.</div>
+  <div class="card">
+    <h2>Quantidade de documentos por mês</h2>
+    <div class="chart-wrap" style="height:340px;"><canvas id="chartComparativo"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>Resumo mês a mês</h2>
+    <div class="scroll-table">
+      <table>
+        <thead><tr><th>Mês</th><th>Vendas</th><th>Devoluções</th><th>Canceladas</th><th>% Cancelamento</th></tr></thead>
+        <tbody id="tblComparativo"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="tab-panel" id="tab-notas">
+  <div class="panel-title">Notas Fiscais</div>
+  <div class="panel-desc">Nota por nota: clique numa linha para ver o detalhe completo (impostos, DIFAL, produto).</div>
+  <div class="card">
+    <div class="notes-toolbar">
+      <select id="filtroCategoria" class="filtro-destaque" translate="no"></select>
+      <select id="filtroUF" translate="no"></select>
+      <select id="filtroStatus" translate="no">
+        <option value="ativas">Status: Ativas</option>
+        <option value="todas">Status: Todas</option>
+        <option value="canceladas">Status: Canceladas</option>
+      </select>
+      <label style="font-size:12px; color:#374151; display:flex; align-items:center; gap:5px; cursor:pointer;">
+        <input type="checkbox" id="filtroSoDifal"> Somente com DIFAL
+      </label>
+      <span class="notes-count" id="notesCount"></span>
+    </div>
+    <div id="gridNotas"></div>
+  </div>
+</div>
+
+<div class="tab-panel" id="tab-abc">
+  <div class="panel-title">Curva ABC de Produtos</div>
+  <div class="panel-desc">Classificação A/B/C por faturamento (Pareto) — onde focar a gestão de estoque e reposição.</div>
+  <div class="destaques" id="abcKpis"></div>
+  <div class="grid2">
+    <div class="card">
+      <h2>Curva de Pareto (valor acumulado por produto)</h2>
+      <div class="chart-wrap"><canvas id="chartPareto"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Distribuição de produtos por classe</h2>
+      <div class="chart-wrap"><canvas id="chartABCDist"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="notes-toolbar">
+      <select id="filtroABC" translate="no">
+        <option value="">(Todas as classes)</option>
+        <option value="A">Classe A</option>
+        <option value="B">Classe B</option>
+        <option value="C">Classe C</option>
+      </select>
+      <span class="notes-count" id="abcCount"></span>
+    </div>
+    <div id="gridABC"></div>
+  </div>
+</div>
+
+<div class="tab-panel" id="tab-devolucoes">
+  <div class="panel-title">Devoluções por Produto</div>
+  <div class="panel-desc">Quais produtos mais voltam, em quantidade e em taxa sobre o vendido — e quais notas de devolução pesaram mais no bolso.</div>
+  <div class="destaques" id="devKpis"></div>
+  <div id="devAlerta" class="alerta-banner"></div>
+  <div class="grid2" style="margin-bottom:16px;">
+    <div class="card">
+      <h2>Top 10 — Maior índice de devolução (mín. 3 vendas)</h2>
+      <p style="font-size:12px; color:#6b7280; margin:0 0 10px 0;">Mínimo de 3 vendas no mês para entrar no ranking (evita distorção por amostra pequena). Clique para ver o detalhe.</p>
+      <div class="rank-list" id="rankDevTaxa"></div>
+    </div>
+    <div class="card">
+      <h2>Top 10 — Produtos mais devolvidos (quantidade)</h2>
+      <p style="font-size:12px; color:#6b7280; margin:0 0 10px 0;">Mais unidades devolvidas no período, independente da taxa. Clique para ver o detalhe.</p>
+      <div class="rank-list" id="rankDevQtd"></div>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:16px;">
+    <h2>Produtos com maior taxa de devolução (mín. 3 vendas no mês)</h2>
+    <div class="chart-wrap"><canvas id="chartDevTaxa"></canvas></div>
+  </div>
+  <div class="card" style="margin-bottom:16px;">
+    <h2>Todos os produtos com devolução</h2>
+    <div class="notes-toolbar">
+      <select id="ordenarDev" translate="no">
+        <option value="qtd">Ordenar por quantidade devolvida</option>
+        <option value="taxa">Ordenar por taxa de devolução</option>
+        <option value="valor">Ordenar por valor devolvido</option>
+      </select>
+      <span class="notes-count" id="devCount"></span>
+    </div>
+    <div id="gridDev"></div>
+  </div>
+  <div class="card">
+    <h2>Nota a nota</h2>
+    <p style="font-size:12px; color:#6b7280; margin:0 0 10px 0;">Cada devolução individualmente — clique numa linha para ver o detalhe completo. Use a busca da tabela para filtrar por cliente ou produto.</p>
+    <div class="notes-toolbar">
+      <span class="notes-count" id="devNotasCount"></span>
+    </div>
+    <div id="gridDevNotas"></div>
+  </div>
+</div>
+
+<div class="tab-panel" id="tab-difal">
+  <div class="panel-title">DIFAL por Estado</div>
+  <div class="panel-desc">Diferencial de alíquota devido a cada estado. A baixa de pagamento é feita nota a nota, conforme os comprovantes enviados.</div>
+  <div class="destaques" id="difalKpis"></div>
+  <div id="difalAlerta" style="display:none; background:#fef3c7; border:1px solid #f59e0b; color:#92400e; padding:10px 14px; border-radius:8px; font-size:12px; margin-bottom:14px;"></div>
+
+  <div class="card" style="margin-bottom:16px;">
+    <h2>Juros e multa pagos</h2>
+    <p style="font-size:12px; color:#6b7280; margin:0 0 10px 0;">Extraído automaticamente das guias/comprovantes de pagamento (2026). Alguns estados usam layouts sem essa informação detalhada — nesses casos o valor pode aparecer zerado mesmo com atraso.</p>
+    <div class="destaques" id="difalEncargosKpis"></div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px;">
+    <h2>DIFAL + FCP por estado de destino</h2>
+    <div class="chart-wrap"><canvas id="chartDifal"></canvas></div>
+  </div>
+  <div class="card" style="margin-bottom:16px;">
+    <h2>Totais por estado</h2>
+    <div class="notes-toolbar">
+      <select id="filtroDifalUF" translate="no"><option value="">(Todas UFs)</option></select>
+      <span class="notes-count" id="difalCount"></span>
+    </div>
+    <div id="gridDifal"></div>
+  </div>
+
+  <div class="card">
+    <h2>Nota a nota — por mês e por dia</h2>
+    <p style="font-size:12px; color:#6b7280; margin:0 0 10px 0;">Cada venda com DIFAL, agrupada por mês e por dia — clique numa nota para ver o detalhe completo. Marque um comprovante enviado no chat para dar baixa.</p>
+    <div class="notes-toolbar">
+      <select id="filtroDifalNotaUF" translate="no"><option value="">(Todas UFs)</option></select>
+      <select id="filtroDifalNotaStatus" translate="no">
+        <option value="">(Todos status)</option>
+        <option value="Pago">Pago</option>
+        <option value="Não Pago">Não Pago</option>
+      </select>
+      <span class="notes-count" id="difalNotaCount"></span>
+    </div>
+    <div id="difalNotasHierarquia"></div>
+  </div>
+</div>
+
+<div class="tab-panel" id="tab-canceladas">
+  <div class="panel-title">Notas Canceladas</div>
+  <div class="panel-desc">Documentos cancelados junto à SEFAZ (evento de cancelamento homologado) — já excluídos do faturamento em todas as outras abas.</div>
+  <div class="destaques" id="canceladasKpis"></div>
+  <div id="canceladasAlerta" class="alerta-banner"></div>
+  <div class="card" style="margin-bottom:16px;">
+    <h2>Top 10 — Maiores valores cancelados</h2>
+    <p style="font-size:12px; color:#6b7280; margin:0 0 10px 0;">Documentos cancelados ordenados do maior para o menor valor. Clique para ver o detalhe.</p>
+    <div class="rank-list" id="rankCanceladasValor"></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h2>Cancelamentos por dia</h2>
+      <div class="chart-wrap"><canvas id="chartCanceladasDia"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Por motivo</h2>
+      <div class="chart-wrap"><canvas id="chartCanceladasMotivo"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Todos os documentos cancelados</h2>
+    <div class="notes-toolbar">
+      <select id="filtroCanceladasCategoria" translate="no"><option value="">(Todas categorias)</option></select>
+      <span class="notes-count" id="canceladasCount"></span>
+    </div>
+    <div id="gridCanceladas"></div>
+  </div>
+</div>
+
+<div class="tab-panel" id="tab-qualidade">
+  <div class="panel-title">Qualidade de Dados</div>
+  <div class="panel-desc">Verificações automáticas nas notas processadas: classificação divergente, campos faltando e valores fora do padrão.</div>
+  <div class="destaques" id="qualidadeKpis"></div>
+  <div class="card" style="margin-bottom:16px;">
+    <h2>NCM divergente para o mesmo produto</h2>
+    <p style="font-size:12px; color:#6b7280; margin:0 0 10px 0;">Mesmo nome de produto usando códigos NCM diferentes em vendas de item único — normalmente indica erro de cadastro no anúncio.</p>
+    <div id="gridNcm"></div>
+  </div>
+  <div class="card">
+    <h2>Notas com campos faltando ou valores fora do padrão</h2>
+    <div class="notes-toolbar">
+      <select id="filtroQualidadeTipo" translate="no">
+        <option value="">(Todos os tipos)</option>
+      </select>
+      <span class="notes-count" id="qualidadeCount"></span>
+    </div>
+    <div id="gridQualidade"></div>
+  </div>
+</div>
+
+<div class="tab-panel" id="tab-fretes">
+  <div class="panel-title">Fretes por Estado</div>
+  <div class="panel-desc">Custo de frete (CT-e) por UF de destino — para conferir repasse e negociar com transportadoras.</div>
+  <div class="destaques" id="fretesKpis"></div>
+  <div class="card" style="margin-bottom:16px;">
+    <h2>Valor de frete por estado</h2>
+    <div class="chart-wrap"><canvas id="chartFretes"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="notes-toolbar">
+      <span class="notes-count" id="fretesCount"></span>
+    </div>
+    <div id="gridFretes"></div>
+  </div>
+</div>
+
+<div class="tab-panel" id="tab-faltantes">
+  <div class="panel-title">Notas Faltando</div>
+  <div class="panel-desc">Controle de numeração sequencial das NF-e, por série, dentro do período selecionado — números que não aparecem entre a primeira e a última nota emitida, cruzados com as Inutilizações declaradas na SEFAZ. CT-e fica fora (numeração é de terceiros/transportadoras).</div>
+  <div class="destaques" id="faltantesKpis"></div>
+  <div class="card" style="margin-bottom:16px;">
+    <h2>Resumo por série</h2>
+    <div class="scroll-table">
+      <table>
+        <thead><tr><th>Série</th><th>Faixa numerada</th><th>Emitidas</th><th>Inutilizadas (explicadas)</th><th>Faltando (sem explicação)</th></tr></thead>
+        <tbody id="tblFaltantesResumo"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Números faltando (sem explicação)</h2>
+    <div class="notes-toolbar">
+      <span class="notes-count" id="faltantesCount"></span>
+    </div>
+    <div id="gridFaltantes"></div>
+  </div>
+</div>
+
+<div class="footer-note" id="footerNote"></div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modalBody"></div>
+</div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/gridjs@5.0.2/dist/gridjs.umd.js" integrity="sha384-/XXDzxe4FsGiAe50i/u9pY/Vy/uX654MHB1xoc1BJNnH1WXHhqHga9g3q5tF4gj7" crossorigin="anonymous"></script>
+<div class="carregando-fiscal" id="carregandoFiscal">Carregando notas do cliente…</div>
+<script type="module" src="js/fiscal/carregar.js"></script>
+</body>
+</html>

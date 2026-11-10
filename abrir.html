@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Abrindo documento…</title>
+<style>body{font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;color:#374151;background:#f5f7fa}</style><script src="js/aviso-arquivo.js"></script>
+</head>
+<body><p id="m">Abrindo documento…</p>
+<script type="module">
+// Abre um documento do sistema por um link temporário (usado pelos links de comprovante do Painel Fiscal).
+import db from './js/db.js';
+const m = document.getElementById('m');
+try {
+  if (!(await db.usuario())) { location.href = 'index.html'; }
+  const id = new URLSearchParams(location.search).get('doc');
+  const doc = await db.documento(id);
+  if (!doc) m.textContent = 'Documento não encontrado.';
+  else location.replace(await db.abrirDocumento(doc));
+} catch (e) { m.textContent = 'Não foi possível abrir: ' + e.message; }
+</script>
+</body></html>
