@@ -596,6 +596,8 @@ tr.done .nm { color: var(--ink2); }
 [data-theme="dark"] .tl .tl-wrap { background-image: repeating-linear-gradient(90deg, transparent 0 calc((100% - 168px) / var(--n)), rgba(255,255,255,.04) 0 calc((100% - 168px) / var(--n) * 2)); }
 [data-theme="dark"] .tl .tl-today::after { background: var(--sf); }
 </style><script>(function(){var k="painel_tema",r=document.documentElement;function ap(t){if(t==="dark")r.setAttribute("data-theme","dark");else r.removeAttribute("data-theme");}var t=null;try{t=localStorage.getItem(k);}catch(e){}ap(t);document.addEventListener("DOMContentLoaded",function(){var b=document.getElementById("temaBtn");if(!b)return;b.addEventListener("click",function(){var d=r.getAttribute("data-theme")==="dark"?"light":"dark";ap(d);try{localStorage.setItem(k,d);}catch(e){}});});})();</script><script src="js/aviso-arquivo.js"></script>
+<link rel="stylesheet" href="css/embutido.css">
+<script>(function(){var p=new URLSearchParams(location.search);if(!p.get('embed'))return;var h=document.documentElement;h.classList.add('embutido');h.removeAttribute('data-theme');var c=(p.get('cor')||'').replace(/[^0-9a-fA-F]/g,'');if(c.length===6){h.style.setProperty('--sis-c','#'+c);h.style.setProperty('--sis-ct','#'+c+'14');}})();</script>
 </head>
 <body><div class="app-shell notranslate" translate="no">
 <header class="topbar">

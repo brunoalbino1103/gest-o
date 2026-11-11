@@ -31,7 +31,7 @@ export default async function visaoDP(el, _r, vivo) {
   const docAlert = edocs.filter((d) => daEmp(d.cliente_id) && d.validade && diasAte(d.validade) <= 30);
   const emp = S.empresa ? S.clientes.find((c) => c.id === S.empresa) : null; const cfg = emp ? cfgs.find((c) => c.cliente_id === emp.id) : null;
 
-  topo('Visão geral', `${emp ? nomeEmp(emp) : 'Todas as empresas'} · ${nomeComp(S.comp)}`);
+  topo('Visão geral', `${emp ? nomeEmp(emp) : 'Todas as empresas'} · ${S.todos ? 'pendências de todos os meses; fechamento e obrigações de ' + nomeComp(S.comp) : nomeComp(S.comp)}`);
   const kpi = (cls, l, v, s, href) => `<a class="kpi ${cls}" href="${href}" style="text-decoration:none;color:inherit"><span class="l">${l}</span><span class="v">${v}</span><span class="s">${s}</span></a>`;
   const prior = [
     ...ferAlert.map((x) => ({ ord: x.p.diasLimite, tag: x.n === 'vencida' ? 'bad' : 'at', t: `Férias ${x.n === 'vencida' ? 'vencidas' : 'a marcar'}: ${x.f.nome}`, s: `${nomeC(x.f.cliente_id)} · limite para sair ${dataBR(x.p.limite)}`, href: '#/pessoal/ferias' })),

@@ -9,11 +9,11 @@ import { linhaPainel } from '../leitor.js';
 const F = { dep: '', tipo: '', busca: '', so: '' };
 
 export default async function documentos(el, _p, vivo, ctx = {}) {
-  const imp = ctx.aba === 'importar'; F.dep = ctx.dep || '';
+  const imp = ctx.aba === 'importar'; F.dep = ctx.dep || ''; const quando = S.todos ? 'todos os meses' : nomeComp(S.comp);
   const emp = S.empresa ? S.clientes.find((c) => c.id === S.empresa) : null;
-  topo(imp ? (ctx.dep === 'fiscal' ? 'Importar XML' : 'Importar arquivos') : 'Documentos', imp ? (ctx.dep === 'fiscal' ? 'NF-e, NFC-e, NFS-e, CT-e, cancelamentos e inutilizações: o cliente é reconhecido pelo CNPJ.' : 'Extratos OFX, PDFs e planilhas.') : `Arquivos de ${nomeComp(S.comp)}${emp ? '' : ' · todas as empresas'}`);
+  topo(imp ? (ctx.dep === 'fiscal' ? 'Importar XML' : 'Importar arquivos') : 'Documentos', imp ? (ctx.dep === 'fiscal' ? 'NF-e, NFC-e, NFS-e, CT-e, cancelamentos e inutilizações: o cliente é reconhecido pelo CNPJ.' : 'Extratos OFX, PDFs e planilhas.') : `Arquivos de ${quando}${emp ? '' : ' · todas as empresas'}`);
   el.innerHTML = `<div class="card" ${imp ? '' : 'hidden'}><div class="card-b" id="dImp"></div></div>
-    <div class="card"><div class="card-h"><h2>Arquivos de ${nomeComp(S.comp)}</h2>
+    <div class="card"><div class="card-h"><h2>Arquivos de ${quando}</h2>
      <div class="barra-f">
       <label class="sr" for="fBusca">Buscar</label><input type="search" id="fBusca" placeholder="Arquivo ou cliente" value="${esc(F.busca)}">
       <label class="sr" for="fDep">Departamento</label><select id="fDep" ${ctx.dep ? 'hidden' : ''}><option value="">Todos os departamentos</option>${Object.entries(DEPS).map(([k, d]) => `<option value="${k}" ${F.dep === k ? 'selected' : ''}>${d.longo}</option>`).join('')}</select>
@@ -24,19 +24,19 @@ export default async function documentos(el, _p, vivo, ctx = {}) {
   if (imp) areaImportacao(el.querySelector('#dImp'), { cliente: emp, dep: ctx.dep, aoTerminar: () => carregar() });
   const $c = (s) => el.querySelector(s);
   let docs = [];
-  const carregar = async () => { docs = await db.documentos({ competencia: S.comp }); if (vivo()) lista(); };
+  const carregar = async () => { docs = await db.documentos(S.todos ? {} : { competencia: S.comp }); if (vivo()) lista(); };
   const lista = () => {
     const q = semAcento(F.busca);
     const L = docs.filter((d) => (!S.empresa || d.cliente_id === S.empresa) && (!F.dep || d.departamento === F.dep) && (!F.tipo || d.tipo === F.tipo) && (!F.so || !d.cliente_id) && (!q || semAcento(d.nome_arquivo + ' ' + nomeCliente(d.cliente_id)).includes(q)));
-    $c('#dLista').innerHTML = L.length ? `<div class="tw" style="max-height:640px;overflow:auto"><table class="t"><thead><tr><th>Arquivo</th><th>Cliente</th><th>Departamento</th><th>Tipo</th><th>Enviado</th><th></th></tr></thead><tbody>
+    $c('#dLista').innerHTML = L.length ? `<div class="tw" style="max-height:640px;overflow:auto"><table class="t"><thead><tr><th>Arquivo</th><th>Cliente</th>${S.todos ? '<th>Mês</th>' : ''}<th>Departamento</th><th>Tipo</th><th>Enviado</th><th></th></tr></thead><tbody>
       ${L.slice(0, 500).map((d) => `<tr data-id="${d.id}"><td><button class="lk-doc" data-abre style="border:0;background:none;padding:0;color:var(--co-dk);text-align:left;word-break:break-all;font-weight:500">${esc(d.nome_arquivo)}</button><div class="small muted">${tamanho(d.tamanho || 0)}${d.dados?.tipo === 'nota' ? ' · ' + resumoDados(d.dados) : ''}</div></td>
         <td>${d.cliente_id ? esc(nomeCliente(d.cliente_id)) : '<span class="pill p-at">Sem cliente</span>'}</td>
-        <td>${d.departamento ? `<span class="pill p-${d.departamento}">${DEPS[d.departamento].nome}</span>` : '—'}</td>
+        ${S.todos ? `<td class="small">${d.competencia ? nomeComp(d.competencia, true) : '—'}</td>` : ''}<td>${d.departamento ? `<span class="pill p-${d.departamento}">${DEPS[d.departamento].nome}</span>` : '—'}</td>
         <td>${TIPOS_DOC[d.tipo] || esc(d.tipo)}</td>
         <td class="small muted">${dataBR(d.enviado_em)}<br>${esc(nomePerfil(d.enviado_por))}</td>
         <td style="white-space:nowrap"><button class="btn sec mini" data-baixa>Baixar</button> <button class="btn sec mini" data-edita>Editar</button> ${eAdmin() || d.enviado_por === S.perfil?.id ? '<button class="btn-x" data-apaga aria-label="Excluir" title="Excluir">×</button>' : ''}</td></tr>`).join('')}
       </tbody></table></div>${L.length > 500 ? `<p class="small muted" style="padding:10px 18px">Mostrando 500 de ${L.length}. Use os filtros.</p>` : ''}`
-      : `<div class="vazio">${docs.length ? 'Nenhum arquivo com esse filtro.' : `<b>Nenhum arquivo em ${nomeComp(S.comp)}</b>Arraste os arquivos na área acima.`}</div>`;
+      : `<div class="vazio">${docs.length ? 'Nenhum arquivo com esse filtro.' : `<b>Nenhum arquivo em ${quando}</b>Arraste os arquivos na área acima.`}</div>`;
   };
   await carregar();
 

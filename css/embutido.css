@@ -1,0 +1,45 @@
+/* Painéis originais (Férias e Fiscal) abertos DENTRO do sistema: mesmo visual do sistema novo.
+   Só vale com a classe "embutido" no <html> (posta quando a página abre com ?embed=1).
+   Conteúdo, cálculos e informações dos painéis não mudam. */
+html.embutido{--sis-c:#7A4FD6;--sis-ct:#F3EEFC;--sis-bg:#F3F5F9;--sis-line:#E1E5EE;--sis-na:#98A2B3;--sis-ink2:#344054}
+html.embutido body{background:var(--sis-bg)}
+html.embutido .app-shell{min-height:0}
+
+/* ---------- faixa de abas (as duas páginas) ---------- */
+html.embutido .tab-btn{display:inline-flex;align-items:center;gap:7px;width:auto;margin:0;padding:0 9px;height:42px;border:0;border-bottom:2px solid transparent;border-radius:0;background:none;color:var(--sis-ink2);font-size:12.5px;font-weight:500;white-space:nowrap;justify-content:flex-start}
+html.embutido .tab-btn:hover{background:none;color:#101828;border-bottom-color:var(--sis-line)}
+html.embutido .tab-btn.active{background:none;color:var(--sis-c);font-weight:600;border-bottom-color:var(--sis-c)}
+html.embutido .tab-btn .ic{width:16px;height:16px;color:var(--sis-na)}
+html.embutido .tab-btn.active .ic{color:var(--sis-c)}
+html.embutido .tab-btn .nb{background:#F4F5F8;color:var(--sis-ink2);font-weight:600}
+html.embutido .tab-btn .nb.nb-red,html.embutido .tab-btn.active .nb.nb-red{background:#FCE9E7;color:#C8322B}
+html.embutido .tab-btn.active .nb{background:var(--sis-ct);color:var(--sis-c)}
+
+/* ---------- Férias: barra de abas numa linha só ---------- */
+html.embutido .topbar{box-shadow:none;border-bottom:1px solid var(--sis-line)}
+html.embutido .tb-row2{padding:0 10px;max-width:none;scrollbar-width:thin;scrollbar-color:#D0D5DD transparent}
+html.embutido .navs{flex-wrap:nowrap;gap:0}
+html.embutido .navs .nav-group{flex-direction:row;align-items:center;margin:0 4px 0 0;padding:0 4px 0 0;border-right:1px solid var(--sis-line)}
+html.embutido .navs .nav-group:last-child{border-right:0}
+html.embutido .navs .nav-group-label{display:none}
+html.embutido .navs .nav-group .tabs{gap:0}
+
+/* ---------- Fiscal: o menu lateral do painel vira faixa no topo ---------- */
+html.embutido .app-shell:has(> .sidebar){display:block}
+html.embutido .sidebar{position:sticky;top:0;z-index:30;width:auto;height:auto;display:flex;align-items:center;gap:0;padding:0 16px;background:#fff;border-right:0;border-bottom:1px solid var(--sis-line);overflow-x:auto;scrollbar-width:thin}
+html.embutido .sidebar .brand-header{display:none}
+html.embutido .sidebar .nav-group{display:flex;align-items:center;margin:0 6px 0 0;padding:0 6px 0 0;border-right:1px solid var(--sis-line);flex:none}
+html.embutido .sidebar .nav-group:last-child{border-right:0}
+html.embutido .sidebar .nav-group-label{display:none}
+html.embutido .sidebar .mes-seletor{width:auto;height:32px;padding:0 28px 0 10px;border:1px solid var(--sis-line);border-radius:8px;background:#fff;color:#101828;font-size:12.5px;font-weight:600}
+html.embutido .main-content{padding:20px 20px 40px}
+
+/* cartões e títulos mais leves, como no sistema */
+html.embutido .card,html.embutido .kpi{border-color:var(--sis-line);border-radius:12px;box-shadow:none}
+html.embutido .panel-title{font-size:17px;font-weight:600}
+@media (max-width:760px){html.embutido .main-content{padding:14px 12px 32px}}
+@media (max-width:1240px){html.embutido .tab-btn .ic{display:none}}
+html.embutido .sidebar .nav-group[hidden]{display:none}
+html.embutido .sidebar{flex-wrap:wrap;overflow:visible;padding:4px 12px}
+html.embutido .sidebar .tab-btn{height:38px}
+html.embutido .sidebar .nav-group:has(.mes-seletor){padding-right:10px;margin-right:6px}

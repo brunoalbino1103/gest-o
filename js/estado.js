@@ -31,7 +31,10 @@ export async function tarefasDa(comp = S.comp, forcar = false) {
 export function trocarTarefaNoCache(t) { const l = S._tarefas.get(t.competencia); if (!l) return; const i = l.findIndex((x) => x.id === t.id); if (i >= 0) l[i] = t; }
 export function limparCacheTarefas() { S._tarefas.clear(); }
 
-export function mudarComp(c) { S.comp = c; try { sessionStorage.setItem(COMP_KEY, c); } catch (e) { /* ok */ } }
+export function mudarComp(c) { S.todos = false; S.comp = c; try { sessionStorage.setItem(COMP_KEY, c); sessionStorage.removeItem('contabil_todos'); } catch (e) { /* ok */ } }
+// "Todos os meses": as telas que aceitam mostram todas as competências; S.comp continua sendo o mês de referência
+try { S.todos = sessionStorage.getItem('contabil_todos') === '1'; } catch (e) { S.todos = false; }
+export function mudarTodos(v) { S.todos = !!v; try { if (v) sessionStorage.setItem('contabil_todos', '1'); else sessionStorage.removeItem('contabil_todos'); } catch (e) { /* ok */ } }
 // empresa escolhida no topo ('' = todas)
 try { S.empresa = sessionStorage.getItem('contabil_empresa') || ''; } catch (e) { S.empresa = ''; }
 export function mudarEmpresa(id) { S.empresa = id || ''; try { sessionStorage.setItem('contabil_empresa', S.empresa); } catch (e) { /* ok */ } }

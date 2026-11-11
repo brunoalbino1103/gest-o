@@ -1,5 +1,6 @@
 // Indicadores do DP e provisões: custo da folha mês a mês, quadro de pessoal, rotatividade,
 // horas extras, faltas e afastamentos, e a provisão de férias e 13º de cada colaborador.
+import { ico } from '../icones.js';
 import db from '../db.js';
 import { esc, brl, nomeComp, somaMes, dataBR, hojeISO } from '../util.js';
 import { S } from '../estado.js';
@@ -32,6 +33,7 @@ export default async function indicadores(el, _r, vivo) {
 
   // ---- mês a mês (últimos 12 até a competência escolhida) ----
   const meses = []; for (let i = 11; i >= 0; i--) meses.push(somaMes(S.comp, -i));
+  if (S.todos) { const prim = res.reduce((m, r) => (r.competencia < m ? r.competencia : m), meses[0]); while (meses[0] > prim) meses.unshift(somaMes(meses[0], -1)); }
   const linhas = meses.map((c) => {
     const r = res.find((x) => x.competencia === c); if (!r) return { c };
     const rub = r.rubricas || [];
@@ -76,11 +78,11 @@ export default async function indicadores(el, _r, vivo) {
       ${kpi('', 'Colaboradores', atual.r ? atual.emp : ativos.length, atual.r ? `${atual.adm} admissão(ões) · ${atual.dem} desligamento(s)` : 'ativos no cadastro')}
       ${kpi(turnover > 0.05 ? 'at' : 'ok', 'Rotatividade (12 meses)', comDados.length ? pct(turnover) : '—', 'média de (admissões + desligamentos) ÷ 2 por pessoa')}
       ${kpi(absent != null && absent > 0.03 ? 'at' : 'ok', 'Faltas no ponto', absent != null ? pct(absent) : '—', absent != null ? `${hFalta.toFixed(1).replace('.', ',')} h de falta · ${hEx.toFixed(1).replace('.', ',')} h extras${bCred || bDeb ? ` · banco +${bCred.toFixed(1).replace('.', ',')} h / −${bDeb.toFixed(1).replace('.', ',')} h` : ''}` : 'cartões do mês não importados')}</div>
-    <div class="card"><div class="card-h"><h2>Custo da folha por mês</h2><span class="small muted">passe o mouse nas barras</span></div>${comDados.length ? grafico : ''}
+    <div class="card"><div class="card-h"><h2>Custo da folha por mês${S.todos ? ' · todo o histórico' : ' · últimos 12 meses'}</h2><span class="small muted">passe o mouse nas barras</span></div>${comDados.length ? grafico : ''}
       <div class="tw"><table class="t"><thead><tr><th>Mês</th><th class="r">Pessoas</th><th class="r">Adm.</th><th class="r">Desl.</th><th class="r">Salários e proventos</th><th class="r">FGTS</th>${patronal ? '<th class="r">INSS patronal (estim.)</th>' : ''}<th class="r">Custo total</th><th class="r">Horas extras (R$)</th><th class="r">Dias afastados</th></tr></thead><tbody>
       ${linhas.slice().reverse().map((l) => l.r ? `<tr ${l.c === S.comp ? 'style="background:var(--ct)"' : ''}><td>${nomeComp(l.c, true)}</td><td class="r">${l.emp}</td><td class="r">${l.adm}</td><td class="r">${l.dem}</td><td class="r num">${brl(l.prov)}</td><td class="r num">${brl(l.fgts)}</td>${patronal ? `<td class="r num">${brl(l.enc)}</td>` : ''}<td class="r num"><b>${brl(l.custo)}</b></td><td class="r num">${l.he ? brl(l.he) : '—'}</td><td class="r">${l.afast || '—'}</td></tr>` : `<tr><td>${nomeComp(l.c, true)}</td><td colspan="${patronal ? 9 : 8}" class="small muted">sem folha importada</td></tr>`).join('')}
       </tbody></table></div></div>
-    <div class="card"><div class="card-h"><h2>Provisão de férias e 13º em ${dataBR(ref)}</h2><button class="btn sec mini" id="pCsv">⇩ Planilha (CSV)</button></div>
+    <div class="card"><div class="card-h"><h2>Provisão de férias e 13º em ${dataBR(ref)}</h2><button class="btn sec mini" id="pCsv">${ico('baixar')}Planilha (CSV)</button></div>
       <div class="tw"><table class="t"><thead><tr><th>Colaborador</th><th class="r">Salário</th><th class="r">13º (avos)</th><th class="r">Provisão 13º</th><th class="r">Férias (dias)</th><th class="r">Provisão férias + 1/3</th><th class="r">FGTS${patronal ? ' + INSS' : ''}</th><th class="r">Total</th></tr></thead><tbody>
       ${prov.map((p) => `<tr><td><a href="#/pessoal/colaborador/${p.f.id}">${esc(p.f.nome)}</a><div class="small muted">admissão ${dataBR(p.f.admissao)}</div></td><td class="r num">${brl(p.sal)}</td><td class="r">${p.a13}/12</td><td class="r num">${brl(p.v13)}</td><td class="r" title="${p.venc} vencidos + ${p.aP}/12 proporcionais">${String(p.diasFer).replace('.', ',')}</td><td class="r num">${brl(p.vFer)}</td><td class="r num">${brl(p.encargos)}</td><td class="r num"><b>${brl(p.total)}</b></td></tr>`).join('') || '<tr><td colspan="8"><div class="vazio">Nenhum colaborador ativo com admissão.</div></td></tr>'}
       ${prov.length ? `<tr style="background:var(--ct)"><td><b>Total</b></td><td></td><td></td><td class="r num"><b>${brl(tot('v13'))}</b></td><td></td><td class="r num"><b>${brl(tot('vFer'))}</b></td><td class="r num"><b>${brl(tot('encargos'))}</b></td><td class="r num"><b>${brl(tot('total'))}</b></td></tr>` : ''}

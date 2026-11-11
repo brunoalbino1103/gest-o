@@ -1,5 +1,6 @@
 // Portal do cliente: o que o cliente da empresa vê ao entrar (só os dados da empresa dele).
 // Ele envia documentos, faz pedidos ao DP e baixa as guias e holerites que o escritório publicou.
+import { ico } from '../icones.js';
 import db from '../db.js';
 import { NOME_ESCRITORIO } from '../config.js';
 import { $, esc, brl, dataBR, nomeComp, compPadrao, hojeISO, diasAte, aviso, tamanho } from '../util.js';
@@ -24,11 +25,14 @@ export async function telaPortal(acesso) {
     const meus = docs.filter((d) => d.origem === 'cliente'), pub = docs.filter((d) => d.visivel_cliente);
     const aPagar = pub.filter((d) => GUIAS.includes(d.tipo) && !d.pago_em), novos = pub.filter((d) => !d.visto_em);
     const abertos = peds.filter((p) => p.status === 'nova' || p.status === 'andamento');
-    const abas = [['inicio', 'Início'], ['documentos', `Do escritório${novos.length ? ` <span class="nb red">${novos.length}</span>` : ''}`], ['enviar', 'Enviar arquivos'], ['pedidos', 'Pedidos ao DP']];
-    $('#raiz').innerHTML = `<div style="--c:#7A4FD6;--ct:#F1EBFC"><header class="tb"><div class="tb-row tb-row1">
-        <div class="tb-brand"><span class="dot-dep" style="font-weight:700">${esc(nomeE.slice(0, 1))}</span><div><h1>${esc(nomeE)}</h1><div class="tb-sub">Portal do cliente · ${esc(NOME_ESCRITORIO)}</div></div></div>
-        <div class="tb-ctrls">${db.demo ? '<span class="demo-tag">Demonstração</span>' : ''}<span class="small">${esc(acesso.nome || acesso.email)}</span><button class="tb-sair" id="sair">Sair</button></div></div>
-        <div class="tb-row tb-row2"><nav class="navs"><div class="nav-group"><div class="abas">${abas.map(([k, t]) => `<button class="tab-btn ${aba === k ? 'active' : ''}" data-p="${k}">${t}</button>`).join('')}</div></div></nav></div></header>
+    const abas = [['inicio', 'Início', 'inicio'], ['documentos', `Do escritório${novos.length ? ` <span class="nb red">${novos.length}</span>` : ''}`, 'pasta'], ['enviar', 'Enviar arquivos', 'importar'], ['pedidos', 'Pedidos ao DP', 'nota']];
+    $('#raiz').innerHTML = `<div class="app portal" style="--c:#7A4FD6;--ct:#F3EEFC">
+      <header class="topo">
+        <span class="topo-marca"><span class="dot-dep">${ico('empresa')}</span><span><b>${esc(nomeE)}</b><small>Portal do cliente · ${esc(NOME_ESCRITORIO)}</small></span></span>
+        <span class="topo-quem">${db.demo ? '<span class="demo-tag">Demonstração</span>' : ''}<span>${esc(acesso.nome || acesso.email)}</span></span>
+        <button class="topo-sair" id="sair" title="Sair" aria-label="Sair">${ico('sair')}</button>
+      </header>
+      <nav class="abas-linha" aria-label="Portal">${abas.map(([k, t, ic]) => `<button class="${aba === k ? 'on' : ''}" data-p="${k}">${ico(ic)}<span>${t}</span></button>`).join('')}</nav>
       <div class="conteudo"><main id="conteudo" style="display:flex;flex-direction:column;gap:16px"></main></div></div>`;
     $('#sair').addEventListener('click', async () => { await db.sair(); location.hash = ''; location.reload(); });
     document.querySelectorAll('[data-p]').forEach((b) => b.addEventListener('click', () => { aba = b.dataset.p; desenhar(); }));
@@ -69,7 +73,7 @@ export async function telaPortal(acesso) {
       });
     }
     if (aba === 'pedidos') {
-      el.innerHTML = `<div class="card"><div class="card-h"><h2>Novo pedido</h2><button class="btn sec mini" id="pFicha">⇩ Ficha de admissão para preencher</button></div><div class="card-b" style="display:flex;gap:8px;flex-wrap:wrap">${Object.entries(TIPOS_PEDIDO).map(([k, t]) => `<button class="btn sec" data-novo="${k}">${t}</button>`).join('')}</div></div>
+      el.innerHTML = `<div class="card"><div class="card-h"><h2>Novo pedido</h2><button class="btn sec mini" id="pFicha">${ico('baixar')}Ficha de admissão para preencher</button></div><div class="card-b" style="display:flex;gap:8px;flex-wrap:wrap">${Object.entries(TIPOS_PEDIDO).map(([k, t]) => `<button class="btn sec" data-novo="${k}">${t}</button>`).join('')}</div></div>
         <div class="card"><div class="card-h"><h2>Seus pedidos</h2></div>${peds.length ? `<div class="tw"><table class="t"><thead><tr><th>Pedido</th><th>Feito em</th><th>Situação</th><th>Resposta do escritório</th></tr></thead><tbody>${peds.sort((a, b) => b.criado_em.localeCompare(a.criado_em)).map((p) => `<tr><td><b>${esc(TIPOS_PEDIDO[p.tipo] || p.tipo)}</b><div class="small muted">${esc(p.titulo || '')}</div></td><td>${dataBR(p.criado_em)}</td><td><span class="pill ${ST_PEDIDO[p.status][1]}">${ST_PEDIDO[p.status][0]}</span></td><td class="small">${esc(p.resposta || '')}</td></tr>`).join('')}</tbody></table></div>` : '<div class="vazio">Nenhum pedido feito.</div>'}</div>`;
       el.querySelector('#pFicha').addEventListener('click', () => baixarFicha(emp));
     }

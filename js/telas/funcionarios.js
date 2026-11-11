@@ -1,4 +1,5 @@
 // Funcionários dos clientes: cadastro, importação por planilha e faltas. Alimenta o painel de Férias.
+import { ico } from '../icones.js';
 import db from '../db.js';
 import { esc, dataBR, semAcento, soDigitos, aviso, modal, confirmar, baixarArquivo } from '../util.js';
 import { S, nomeCliente } from '../estado.js';
@@ -17,7 +18,7 @@ export default async function funcionarios(el, _p, vivo) {
       <label class="sr" for="fuCli">Cliente</label><select id="fuCli" hidden><option value="">Todos os clientes</option>${clis.map((c) => `<option value="${c.id}" ${filtroCli === c.id ? 'selected' : ''}>${esc(c.nome_fantasia || c.razao_social)}</option>`).join('')}</select>
       <label class="sr" for="fuBusca">Buscar</label><input type="search" id="fuBusca" placeholder="Nome, cargo ou setor" value="${esc(busca)}">
       <div class="seg" role="group" aria-label="Situação">${[['ativos', 'Ativos'], ['desligados', 'Desligados'], ['todos', 'Todos']].map(([k, t]) => `<button data-sit="${k}" aria-pressed="${sit === k}">${t}</button>`).join('')}</div></div>
-     <div class="barra-f"><button class="btn sec" id="fuFicha" title="Planilha para o colaborador preencher; depois é só arrastar em Importar arquivos">⇩ Ficha para preencher</button><a class="btn sec" id="fuFerias" href="#/pessoal/ferias">Ver férias</a><button class="btn sec" id="fuImp">Importar planilha</button><button class="btn" id="fuNovo">+ Novo colaborador</button></div></div>
+     <div class="barra-f"><button class="btn sec" id="fuFicha" title="Planilha para o colaborador preencher; depois é só arrastar em Importar arquivos">${ico('baixar')}Ficha para preencher</button><a class="btn sec" id="fuFerias" href="#/pessoal/ferias">Ver férias</a><button class="btn sec" id="fuImp">Importar planilha</button><button class="btn" id="fuNovo">+ Novo colaborador</button></div></div>
     <div class="tw"><table class="t"><thead><tr><th>Funcionário</th><th>Cliente</th><th>Cargo · setor</th><th>Admissão</th><th>Férias quitadas até</th><th>Faltas</th><th>Situação</th></tr></thead><tbody id="fuCorpo"></tbody></table></div></div>`;
   const $c = (s) => el.querySelector(s);
   const corpo = () => {

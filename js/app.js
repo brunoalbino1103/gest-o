@@ -1,42 +1,36 @@
 // Estrutura principal: login, início por departamento e, dentro de cada departamento,
-// a barra do topo (Empresa, Mês, abas) no mesmo estilo dos painéis de Ponto e Férias.
+// o topo (Empresa, Mês, departamentos) e o menu lateral com as telas na ordem do trabalho.
 import db from './db.js';
 import { NOME_ESCRITORIO } from './config.js';
 import { $, $$, esc, nomeComp, somaMes, compPadrao, aviso, atrasada } from './util.js';
-import { S, carregarBase, mudarComp, mudarEmpresa, tarefasDa, empresaAtual } from './estado.js';
+import { S, carregarBase, mudarComp, mudarTodos, mudarEmpresa, tarefasDa, empresaAtual } from './estado.js';
+import { ico } from './icones.js';
 
-const SVG = {
-  fiscal: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
-  pessoal: '<path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>',
-  contabil: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
-  cadastros: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-2.82 1.17V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-2.82-1.17l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6V3a2 2 0 114 0v.09A1.65 1.65 0 0015.4 6.6l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/>',
-};
-const svg = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${SVG[k]}</svg>`;
-
-// Cada departamento: abas agrupadas e a tela que cada aba abre
+// Cada departamento: grupos do menu e as telas.
+// [chave, nome, tela, oculta, ícone, precisaDeUmMês]
 const T = (f) => () => import('./telas/' + f + '.js');
 export const AREAS = {
-  fiscal: { nome: 'Departamento Fiscal', curto: 'Fiscal', cor: '#2F5BEA', ct: '#EAF0FF', dep: 'fiscal', grupos: [
-    ['Geral', [['visao', 'Visão geral', T('departamento')]]],
-    ['Notas', [['painel', 'Painel Fiscal', T('painel-fiscal')]]],
-    ['Arquivos', [['importar', 'Importar arquivos', T('importador')], ['documentos', 'Documentos', T('documentos')]]],
+  fiscal: { nome: 'Departamento Fiscal', curto: 'Fiscal', cor: '#2F5BEA', ct: '#EEF2FE', dep: 'fiscal', grupos: [
+    ['Painel', [['visao', 'Visão geral', T('departamento'), false, 'inicio', true]]],
+    ['Notas', [['painel', 'Painel Fiscal', T('painel-fiscal'), false, 'painel']]],
+    ['Arquivos', [['importar', 'Importar arquivos', T('importador'), false, 'importar'], ['documentos', 'Documentos', T('documentos'), false, 'pasta']]],
   ] },
-  pessoal: { nome: 'Departamento Pessoal', curto: 'Pessoal', cor: '#7A4FD6', ct: '#F1EBFC', dep: 'dp', grupos: [
-    ['Geral', [['visao', 'Visão geral', T('dp-visao')]]],
-    ['Cadastros', [['empresas', 'Empresas', T('dp-empresas')], ['colaboradores', 'Colaboradores', T('funcionarios')], ['colaborador', 'Ficha do colaborador', T('dp-colaborador'), true]]],
-    ['Rotina do mês', [['fechamento', 'Fechamento do mês', T('dp-fechamento')], ['conferencia', 'Conferência', T('dp-conferencia')],['obrigacoes', 'Obrigações', T('departamento')], ['ponto', 'Ponto e horas extras', T('dp-ponto')], ['vrvt', 'VR/VT', T('dp-vrvt')]]],
-    ['Acompanhar', [['ferias', 'Férias', T('dp-ferias')], ['experiencia', 'Experiência', T('dp-experiencia')], ['movimentacoes', 'Admissões e rescisões', T('dp-movimentacoes')], ['simulador', 'Simulador', T('dp-simulador')], ['sst', 'Saúde e segurança', T('dp-sst')], ['indicadores', 'Indicadores', T('dp-indicadores')]]],
-    ['Arquivos', [['importar', 'Importar arquivos', T('importador')], ['documentos', 'Documentos', T('documentos')], ['portal', 'Portal do cliente', T('portal-equipe')]]],
+  pessoal: { nome: 'Departamento Pessoal', curto: 'Pessoal', cor: '#7A4FD6', ct: '#F3EEFC', dep: 'dp', grupos: [
+    ['Painel', [['visao', 'Visão geral', T('dp-visao'), false, 'inicio'], ['indicadores', 'Indicadores', T('dp-indicadores'), false, 'grafico']]],
+    ['Rotina do mês', [['importar', 'Importar arquivos', T('importador'), false, 'importar'], ['fechamento', 'Fechamento do mês', T('dp-fechamento'), false, 'fechamento'], ['ponto', 'Ponto e horas extras', T('dp-ponto'), false, 'relogio', true], ['vrvt', 'VR/VT', T('dp-vrvt'), false, 'cartao', true], ['conferencia', 'Conferência', T('dp-conferencia'), false, 'conferir'], ['obrigacoes', 'Obrigações', T('departamento'), false, 'calendarioOk', true]]],
+    ['Colaboradores', [['colaboradores', 'Colaboradores', T('funcionarios'), false, 'pessoas'], ['colaborador', 'Ficha do colaborador', T('dp-colaborador'), true, 'pessoa'], ['ferias', 'Férias', T('dp-ferias'), false, 'ferias'], ['experiencia', 'Experiência', T('dp-experiencia'), false, 'ampulheta'], ['movimentacoes', 'Admissões e rescisões', T('dp-movimentacoes'), false, 'troca'], ['sst', 'Saúde e segurança', T('dp-sst'), false, 'saude']]],
+    ['Empresas e clientes', [['empresas', 'Empresas', T('dp-empresas'), false, 'empresa'], ['portal', 'Portal do cliente', T('portal-equipe'), false, 'portal'], ['documentos', 'Documentos', T('documentos'), false, 'pasta']]],
+    ['Ferramentas', [['simulador', 'Simulador', T('dp-simulador'), false, 'calculadora']]],
   ] },
-  contabil: { nome: 'Contabilidade', curto: 'Contábil', cor: '#0E8A7E', ct: '#E3F4F2', dep: 'contabil', grupos: [
-    ['Geral', [['visao', 'Visão geral', T('departamento')]]],
-    ['Rotina do mês', [['extratos', 'Extratos bancários', T('contabil-extratos')]]],
-    ['Arquivos', [['importar', 'Importar arquivos', T('importador')], ['documentos', 'Documentos', T('documentos')]]],
+  contabil: { nome: 'Contabilidade', curto: 'Contábil', cor: '#0E8A7E', ct: '#E6F4F2', dep: 'contabil', grupos: [
+    ['Painel', [['visao', 'Visão geral', T('departamento'), false, 'inicio', true]]],
+    ['Rotina do mês', [['extratos', 'Extratos bancários', T('contabil-extratos'), false, 'banco', true]]],
+    ['Arquivos', [['importar', 'Importar arquivos', T('importador'), false, 'importar'], ['documentos', 'Documentos', T('documentos'), false, 'pasta']]],
   ] },
   cadastros: { nome: 'Cadastros e configurações', curto: 'Cadastros', cor: '#475467', ct: '#F2F4F7', dep: null, grupos: [
-    ['Cadastros', [['clientes', 'Empresas (clientes)', T('clientes')], ['empresa', 'Ficha da empresa', T('cliente'), true]]],
-    ['Clientes', [['portal', 'Portal do cliente', T('portal-equipe')]]],
-    ['Regras e equipe', [['configuracoes', 'Obrigações, feriados e equipe', T('config')]]],
+    ['Cadastros', [['clientes', 'Empresas (clientes)', T('clientes'), false, 'empresa'], ['empresa', 'Ficha da empresa', T('cliente'), true, 'empresa']]],
+    ['Clientes', [['portal', 'Portal do cliente', T('portal-equipe'), false, 'portal']]],
+    ['Regras e equipe', [['configuracoes', 'Obrigações, feriados e equipe', T('config'), false, 'regras']]],
   ] },
 };
 const abaDe = (area, aba) => AREAS[area].grupos.flatMap((g) => g[1]).find((a) => a[0] === aba);
@@ -69,14 +63,14 @@ async function telaInicio() {
   const p = S.perfil;
   $('#raiz').innerHTML = `<div class="inicio">
     <div class="inicio-topo"><div class="in"><div class="mark">SC</div><div><h1>${esc(NOME_ESCRITORIO)}</h1><div class="sub">Sistema contábil</div></div>
-      <div class="dir">${db.demo ? '<span class="demo-tag">Modo demonstração</span>' : ''}<span>${esc(p?.nome || '')}</span><button class="tb-sair" id="sair">Sair</button></div></div></div>
+      <div class="dir">${db.demo ? '<span class="demo-tag">Modo demonstração</span>' : ''}<span>${esc(p?.nome || '')}</span><button class="topo-sair" id="sair" title="Sair" aria-label="Sair">${ico('sair')}</button></div></div></div>
     <div class="inicio-corpo">
       <div><h2>Qual departamento?</h2><p class="dica">Cada departamento mostra só o que é dele. Dentro, escolha a empresa no topo.</p></div>
       <div class="deps-ini">${['fiscal', 'pessoal', 'contabil'].map((k) => { const a = AREAS[k]; return `<a class="dep-ini" href="#/${k}/visao" style="--c:${a.cor};--ct:${a.ct}">
-        <span class="ic">${svg(k)}</span><b>${a.nome}</b>
+        <span class="ic">${ico(k)}</span><b>${a.nome}</b>
         <p>${{ fiscal: 'Notas fiscais, Painel Fiscal por empresa, DIFAL, impostos e obrigações do mês.', pessoal: 'Colaboradores, férias, ponto, experiência, admissões e rescisões, VR/VT e o fechamento da folha.', contabil: 'Extratos bancários, conciliação, lançamentos e balancetes.' }[k]}</p>
         <span class="nums" data-nums="${a.dep}"><span>…</span></span></a>`; }).join('')}</div>
-      <div class="atalhos"><a class="atalho" href="#/pessoal/importar" style="background:var(--co);color:#fff;border-color:var(--co);font-weight:600">⇪ Importar arquivos (o sistema reconhece sozinho)</a><a class="atalho" href="#/cadastros/clientes">${'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' + SVG.cadastros + '</svg>'} Empresas e configurações</a></div>
+      <div class="atalhos"><a class="atalho prim" href="#/pessoal/importar">${ico('importar')} Importar arquivos <span class="small">o sistema reconhece sozinho</span></a><a class="atalho" href="#/cadastros/clientes">${ico('engrenagem')} Empresas e configurações</a></div>
     </div></div>`;
   $('#sair').addEventListener('click', async () => { S.perfil = null; await db.sair(); telaLogin(); });
   try {
@@ -92,7 +86,7 @@ async function telaInicio() {
 function opcoesComp() {
   const base = compPadrao(); const l = []; for (let i = -12; i <= 2; i++) l.push(somaMes(base, i));
   if (!l.includes(S.comp)) l.push(S.comp);
-  return l.sort().reverse().map((c) => `<option value="${c}" ${c === S.comp ? 'selected' : ''}>${nomeComp(c, true)}</option>`).join('');
+  return `<option value="todos" ${S.todos ? 'selected' : ''}>Todos os meses</option>` + l.sort().reverse().map((c) => `<option value="${c}" ${!S.todos && c === S.comp ? 'selected' : ''}>${nomeComp(c, true)}</option>`).join('');
 }
 function opcoesEmpresa() {
   const l = S.clientes.filter((c) => c.ativo).sort((a, b) => (a.nome_fantasia || a.razao_social).localeCompare(b.nome_fantasia || b.razao_social, 'pt'));
@@ -101,32 +95,52 @@ function opcoesEmpresa() {
 let areaMontada = null;
 function montarArea(area) {
   const a = AREAS[area]; areaMontada = area;
-  $('#raiz').innerHTML = `<div style="--c:${a.cor};--ct:${a.ct}">
-    <header class="tb">
-      <div class="tb-row tb-row1">
-        <a class="tb-brand" href="#/" style="text-decoration:none" title="Voltar para os departamentos"><span class="dot-dep">${svg(area)}</span><div><h1>${a.nome}</h1><div class="tb-sub" id="tbSub"></div></div></a>
-        <div class="tb-ctrls">
-          ${area === 'cadastros' ? '' : `<div class="ctrl azul"><span class="ctrl-lab">Empresa</span><label class="sr" for="selEmp">Empresa</label><select id="selEmp">${opcoesEmpresa()}</select></div>
-          <div class="ctrl"><span class="ctrl-lab">Mês</span><button id="cAnt" aria-label="Mês anterior">‹</button><label class="sr" for="cSel">Competência</label><select id="cSel">${opcoesComp()}</select><button id="cProx" aria-label="Mês seguinte">›</button></div>`}
-          <nav class="tb-switch" aria-label="Departamentos">${['fiscal', 'pessoal', 'contabil'].map((k) => `<a href="#/${k}/visao" class="${k === area ? 'on' : ''}" style="--c:${AREAS[k].cor}">${AREAS[k].curto}</a>`).join('')}<a href="#/cadastros/clientes" class="${area === 'cadastros' ? 'on' : ''}" title="Empresas e configurações">⚙</a></nav>
-          ${area === 'cadastros' ? '' : `<a class="btn" href="#/${area}/importar" style="min-height:36px;border-radius:999px">⇪ Importar arquivos</a>`}
-          <button class="tb-sair" id="sair" title="${esc(S.perfil?.email || '')}">Sair</button>
-        </div>
-      </div>
-      <div class="tb-row tb-row2"><nav class="navs">${a.grupos.map(([g, abas]) => `<div class="nav-group"><div class="nav-group-label">${g}</div><div class="abas">${abas.filter((x) => !x[3]).map(([k, t]) => `<a class="tab-btn" data-aba="${k}" href="#/${area}/${k}">${t}<span class="nb" id="nb-${k}"></span></a>`).join('')}</div></div>`).join('')}</nav></div>
+  const filtros = area === 'cadastros' ? '' : `<div class="topo-filtros">
+      <label class="ctrl"><span class="ctrl-lab">Empresa</span><select id="selEmp" aria-label="Empresa">${opcoesEmpresa()}</select></label>
+      <div class="ctrl"><span class="ctrl-lab">Mês</span><button id="cAnt" aria-label="Mês anterior">${ico('voltar')}</button><select id="cSel" aria-label="Competência">${opcoesComp()}</select><button id="cProx" aria-label="Mês seguinte">${ico('avancar')}</button></div>
+    </div>`;
+  $('#raiz').innerHTML = `<div class="app" style="--c:${a.cor};--ct:${a.ct}">
+    <header class="topo">
+      <button class="topo-menu" id="mMenu" aria-label="Abrir menu">${ico('menu')}</button>
+      <a class="topo-marca" href="#/" title="Voltar para os departamentos"><span class="dot-dep">${ico(area)}</span><span><b>${a.nome}</b><small id="tbSub"></small></span></a>
+      ${filtros}
+      <nav class="topo-deps" aria-label="Departamentos">${['fiscal', 'pessoal', 'contabil'].map((k) => `<a href="#/${k}/visao" class="${k === area ? 'on' : ''}" style="--c:${AREAS[k].cor}">${AREAS[k].curto}</a>`).join('')}<a href="#/cadastros/clientes" class="ic ${area === 'cadastros' ? 'on' : ''}" title="Empresas e configurações" aria-label="Empresas e configurações">${ico('engrenagem')}</a></nav>
+      <button class="topo-sair" id="sair" title="Sair · ${esc(S.perfil?.email || '')}" aria-label="Sair">${ico('sair')}</button>
     </header>
-    <div class="conteudo">
-      ${db.demo ? '<div class="demo-tag" style="margin-bottom:12px">Modo demonstração: dados fictícios, só neste navegador.</div>' : ''}
-      <div class="cab" style="margin-bottom:14px"><div><div class="panel-title" id="tTitulo"></div><div class="panel-desc" id="tSub"></div></div></div>
-      <main id="conteudo" style="display:flex;flex-direction:column;gap:16px"></main>
+    <div class="corpo">
+      <aside class="lateral" id="lateral">
+        <div class="lat-ctrl"><button id="latMini" title="Minimizar menu (só ícones)" aria-label="Minimizar menu">${ico('minimizar')}</button><button id="latOcultar" title="Ocultar menu" aria-label="Ocultar menu">${ico('ocultar')}</button></div>
+        <nav aria-label="${esc(a.nome)}">${a.grupos.map(([g, abas]) => `<div class="lat-g"><div class="lat-t">${g}</div>${abas.filter((x) => !x[3]).map(([k, t, , , ic]) => `<a class="lat-i" data-aba="${k}" href="#/${area}/${k}" title="${t}">${ico(ic)}<span class="lat-n">${t}</span><span class="nb" id="nb-${k}"></span></a>`).join('')}</div>`).join('')}</nav></aside>
+      <button class="lat-abrir" id="latAbrir" title="Mostrar menu" aria-label="Mostrar menu">${ico('mostrar')}</button>
+      <div class="lat-fundo" id="latFundo"></div>
+      <div class="conteudo">
+        ${db.demo ? '<div class="demo-tag" style="margin-bottom:12px">Modo demonstração: dados fictícios, só neste navegador.</div>' : ''}
+        <div class="cab"><div><h1 class="panel-title" id="tTitulo"></h1><div class="panel-desc" id="tSub"></div></div></div>
+        <main id="conteudo" style="display:flex;flex-direction:column;gap:16px"></main>
+      </div>
     </div></div>`;
+  const app = $('.app');
+  $('#mMenu').addEventListener('click', () => app.classList.toggle('menu-aberto'));
+  $('#latFundo').addEventListener('click', () => app.classList.remove('menu-aberto'));
+  $('#lateral').addEventListener('click', (e) => { if (e.target.closest('.lat-i')) app.classList.remove('menu-aberto'); });
+  // menu lateral: normal, minimizado (só ícones) ou oculto; a escolha fica guardada neste navegador
+  const modoMenu = (m) => {
+    app.classList.toggle('lat-mini', m === 'mini'); app.classList.toggle('lat-oculta', m === 'oculto');
+    const b = $('#latMini'); b.innerHTML = ico(m === 'mini' ? 'expandir' : 'minimizar'); b.title = m === 'mini' ? 'Expandir menu' : 'Minimizar menu (só ícones)'; b.setAttribute('aria-label', b.title);
+    try { localStorage.setItem('contabil_menu', m); } catch (e) { /* sem storage */ }
+  };
+  let m0 = 'normal'; try { m0 = localStorage.getItem('contabil_menu') || 'normal'; } catch (e) { /* ok */ }
+  modoMenu(m0);
+  $('#latMini').addEventListener('click', () => modoMenu(app.classList.contains('lat-mini') ? 'normal' : 'mini'));
+  $('#latOcultar').addEventListener('click', () => modoMenu('oculto'));
+  $('#latAbrir').addEventListener('click', () => modoMenu('normal'));
   $('#sair').addEventListener('click', async () => { S.perfil = null; await db.sair(); areaMontada = null; telaLogin(); });
   if (area !== 'cadastros') {
     $('#selEmp').addEventListener('change', (e) => { mudarEmpresa(e.target.value); rota(); });
-    const troca = (c) => { mudarComp(c); $('#cSel').innerHTML = opcoesComp(); rota(); };
+    const troca = (c) => { if (c === 'todos') mudarTodos(true); else mudarComp(c); $('#cSel').innerHTML = opcoesComp(); rota(); };
     $('#cSel').addEventListener('change', (e) => troca(e.target.value));
-    $('#cAnt').addEventListener('click', () => troca(somaMes(S.comp, -1)));
-    $('#cProx').addEventListener('click', () => troca(somaMes(S.comp, 1)));
+    $('#cAnt').addEventListener('click', () => troca(S.todos ? S.comp : somaMes(S.comp, -1)));
+    $('#cProx').addEventListener('click', () => troca(S.todos ? S.comp : somaMes(S.comp, 1)));
   }
 }
 export function topo(titulo, sub = '') { const t = $('#tTitulo'); if (!t) return; t.textContent = titulo; $('#tSub').innerHTML = sub; document.title = titulo + ' · Sistema Contábil'; }
@@ -141,6 +155,14 @@ export async function atualizarContadores() {
   } catch (e) { /* opcional */ }
 }
 
+// Tela que trabalha com um mês só, aberta em "Todos os meses": pede o mês
+function escolherMes(el, nome) {
+  topo(nome, 'Esta tela mostra um mês por vez. Escolha o mês:');
+  const l = []; for (let i = 0; i < 12; i++) l.push(somaMes(S.comp, -i));
+  el.innerHTML = `<div class="card"><div class="card-b"><div class="meses">${l.map((c) => `<button data-mes="${c}"><b>${nomeComp(c, true)}</b><span>${nomeComp(c).split(' de ')[0]}</span></button>`).join('')}</div></div></div>`;
+  el.querySelectorAll('[data-mes]').forEach((b) => b.addEventListener('click', () => { mudarComp(b.dataset.mes); rota(); }));
+}
+
 // ---------------- rotas ----------------
 let rodando = 0;
 async function rota() {
@@ -150,14 +172,16 @@ async function rota() {
   const aba = abaDe(ar, aba0) ? aba0 : AREAS[ar].grupos[0][1][0][0];
   if (areaMontada !== ar) montarArea(ar);
   if ($('#selEmp')) $('#selEmp').innerHTML = opcoesEmpresa();
-  $$('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.aba === aba || (aba === 'colaborador' && b.dataset.aba === 'colaboradores') || (aba === 'empresa' && b.dataset.aba === 'clientes')));
+  if ($('#cSel')) $('#cSel').innerHTML = opcoesComp();
+  $$('.lat-i').forEach((b) => b.classList.toggle('on', b.dataset.aba === aba || (aba === 'colaborador' && b.dataset.aba === 'colaboradores') || (aba === 'empresa' && b.dataset.aba === 'clientes')));
   const emp = empresaAtual();
-  $('#tbSub').textContent = ar === 'cadastros' ? NOME_ESCRITORIO : (emp ? (emp.nome_fantasia || emp.razao_social) : 'Todas as empresas') + ' · ' + nomeComp(S.comp, true);
+  $('#tbSub').textContent = ar === 'cadastros' ? NOME_ESCRITORIO : (emp ? (emp.nome_fantasia || emp.razao_social) : 'Todas as empresas') + ' · ' + (S.todos ? 'todos os meses' : nomeComp(S.comp, true));
   const velho = $('#conteudo'); const el = velho.cloneNode(false); velho.replaceWith(el); const minha = ++rodando;
   el.innerHTML = '<div class="carregando">Carregando…</div>';
+  const def = abaDe(ar, aba);
+  if (S.todos && def[5]) { escolherMes(el, def[1]); atualizarContadores(); return; }
   try {
-    const [, , carregar] = abaDe(ar, aba);
-    const mod = await carregar(); if (minha !== rodando) return;
+    const mod = await def[2](); if (minha !== rodando) return;
     await mod.default(el, resto, () => minha === rodando, { area: ar, dep: AREAS[ar].dep, aba });
   } catch (e) {
     console.error(e); if (minha !== rodando) return;

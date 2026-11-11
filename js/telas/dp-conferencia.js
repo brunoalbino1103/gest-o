@@ -1,7 +1,7 @@
 // Conferência do fechamento: guias × folha e ponto × folha, por empresa e mês.
 import db from '../db.js';
 import { esc, brl, nomeComp, dataBR, diasAte, aviso } from '../util.js';
-import { S } from '../estado.js';
+import { S, mudarComp, mudarEmpresa } from '../estado.js';
 import { topo, recarregarTela } from '../app.js';
 import { conferirGuias, conferirPonto, ST } from '../conferencia.js';
 import { hm } from '../ponto.js';
@@ -11,10 +11,24 @@ const pill = (st) => `<span class="pill ${ST[st][1]}">${ST[st][2]} ${ST[st][0]}<
 const hmz = (m) => (m ? hm(m) : '—');
 
 export default async function conferencia(el, _r, vivo) {
-  const [resumos, guias, itens, cartoes, funcs] = await Promise.all(['folha_resumos', 'guias', 'folha_itens', 'ponto_cartoes'].map((t) => db.listar(t, { competencia: S.comp }).catch(() => [])).concat([db.funcionarios()]));
+  const [resumos, guias, itens, cartoes, funcs] = await Promise.all(['folha_resumos', 'guias', 'folha_itens', 'ponto_cartoes'].map((t) => db.listar(t, S.todos ? {} : { competencia: S.comp }).catch(() => [])).concat([db.funcionarios()]));
   if (!vivo()) return;
   const emps = empresasDP().filter((c) => c.tem_funcionarios && (!S.empresa || c.id === S.empresa));
   const deEmp = (l, id) => l.filter((x) => x.cliente_id === id);
+  if (S.todos) {
+    // todos os meses: uma linha por mês e empresa que tenha folha, guia ou cartão importado
+    const pares = new Map(); [resumos, guias, cartoes].flat().forEach((x) => { if (x.competencia && emps.some((c) => c.id === x.cliente_id)) pares.set(x.competencia + '|' + x.cliente_id, [x.competencia, x.cliente_id]); });
+    const L = [...pares.values()].sort((a, b) => b[0].localeCompare(a[0]) || nomeEmp(S.clientes.find((c) => c.id === a[1])).localeCompare(nomeEmp(S.clientes.find((c) => c.id === b[1])), 'pt'));
+    topo('Conferência do fechamento', 'Todos os meses · guias × folha e ponto × folha. Clique numa linha para ver o detalhe do mês.');
+    const doMes = (l, m, id) => l.filter((x) => x.competencia === m && x.cliente_id === id);
+    el.innerHTML = `<div class="card"><div class="tw"><table class="t"><thead><tr><th>Mês</th>${S.empresa ? '' : '<th>Empresa</th>'}<th>FGTS</th><th>DARF</th><th>Assistencial</th><th>Ponto × folha</th></tr></thead><tbody>
+      ${L.map(([m, id]) => { const g = conferirGuias(doMes(resumos, m, id)[0], doMes(guias, m, id)); const p = conferirPonto(doMes(cartoes, m, id), doMes(itens, m, id), funcs); const pst = !p.length ? null : p.some((x) => x.st === 'diferente') ? 'diferente' : p.every((x) => x.st === 'sem_folha') ? 'sem_folha' : 'ok';
+        const cel = (k) => { const x = g.find((y) => y.chave === k); return x ? pill(x.st) : '<span class="muted">—</span>'; };
+        return `<tr class="lk" data-mes="${m}" data-cli="${id}"><td><b>${nomeComp(m, true)}</b></td>${S.empresa ? '' : `<td>${esc(nomeEmp(S.clientes.find((c) => c.id === id)))}</td>`}<td>${cel('guia_fgts')}</td><td>${cel('guia_darf_dp')}</td><td>${cel('guia_sindical')}</td><td>${pst ? pill(pst) : '<span class="muted">sem cartão</span>'}</td></tr>`; }).join('') || `<tr><td colspan="6"><div class="vazio">Nada importado ainda.</div></td></tr>`}
+    </tbody></table></div></div>`;
+    el.querySelectorAll('[data-mes]').forEach((r) => r.addEventListener('click', () => { mudarComp(r.dataset.mes); mudarEmpresa(r.dataset.cli); recarregarTela(); }));
+    return;
+  }
 
   if (!S.empresa) {
     topo('Conferência do fechamento', `${nomeComp(S.comp)} · guias × folha e ponto × folha de todas as empresas. Clique numa empresa para ver o detalhe.`);
