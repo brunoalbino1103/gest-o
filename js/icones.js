@@ -30,6 +30,8 @@ const P = {
   expandir: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="m14 10 2 2-2 2"/>',
   ocultar: '<path d="m11 17-5-5 5-5M18 17l-5-5 5-5"/>',
   mostrar: '<path d="m6 17 5-5-5-5M13 17l5-5-5-5"/>',
+  guia: '<path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/>',
+  auditoria: '<path d="M12 3 4 6v6c0 4.5 3.4 7.9 8 9 4.6-1.1 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   voltar: '<path d="m15 18-6-6 6-6"/>',
   avancar: '<path d="m9 18 6-6-6-6"/>',

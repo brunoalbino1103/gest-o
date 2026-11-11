@@ -22,14 +22,16 @@ async function todas(montar) {
 }
 const limpa = (o) => { const r = { ...o }; Object.keys(r).forEach((k) => { if (k.startsWith('_')) delete r[k]; if (r[k] === '') r[k] = null; }); return r; };
 let uid = null;
+// ação que não muda dados (entrar, abrir arquivo...) vai para a auditoria; nunca bloqueia o uso
+const acao = (nome, descricao = null, cliente = null, detalhe = null) => { sb.rpc('registrar_acao', { p_acao: nome, p_descricao: descricao, p_cliente: cliente, p_detalhe: detalhe }).then(() => {}, () => {}); };
 
 export default {
   demo: false,
   // ---------- login ----------
   async usuario() { const { data } = await sb.auth.getSession(); uid = data.session?.user?.id || null; return data.session?.user || null; },
   aoMudarSessao(cb) { sb.auth.onAuthStateChange((_e, s) => { uid = s?.user?.id || null; cb(s?.user || null); }); },
-  async entrar(email, senha) { ok(await sb.auth.signInWithPassword({ email, password: senha })); },
-  async sair() { await sb.auth.signOut(); },
+  async entrar(email, senha) { const d = ok(await sb.auth.signInWithPassword({ email, password: senha })); uid = d.user?.id || uid; acao('Entrou no sistema', email); },
+  async sair() { try { await sb.rpc('registrar_acao', { p_acao: 'Saiu do sistema', p_descricao: null, p_cliente: null, p_detalhe: null }); } catch (e) { /* ok */ } await sb.auth.signOut(); },
   async trocarSenha(nova) { ok(await sb.auth.updateUser({ password: nova })); },
   async esqueciSenha(email) { ok(await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname })); },
 
@@ -105,8 +107,8 @@ export default {
     } catch (e) { await sb.storage.from(BUCKET).remove([caminho]); throw e; }
   },
   async documento(id) { return ok(await sb.from('documentos').select('*').eq('id', id).maybeSingle()); },
-  async linkDocumento(doc) { return ok(await sb.storage.from(BUCKET).createSignedUrl(doc.caminho, 300, { download: doc.nome_arquivo })).signedUrl; },
-  async abrirDocumento(doc) { return ok(await sb.storage.from(BUCKET).createSignedUrl(doc.caminho, 300)).signedUrl; },
+  async linkDocumento(doc) { acao('Baixou arquivo', doc.nome_arquivo, doc.cliente_id); return ok(await sb.storage.from(BUCKET).createSignedUrl(doc.caminho, 300, { download: doc.nome_arquivo })).signedUrl; },
+  async abrirDocumento(doc) { acao('Abriu arquivo', doc.nome_arquivo, doc.cliente_id); return ok(await sb.storage.from(BUCKET).createSignedUrl(doc.caminho, 300)).signedUrl; },
   async excluirDocumento(doc) { ok(await sb.from('documentos').delete().eq('id', doc.id)); await sb.storage.from(BUCKET).remove([doc.caminho]); },
   async atualizarDocumento(id, campos) { return ok(await sb.from('documentos').update(limpa(campos)).eq('id', id).select().single()); },
 
@@ -173,5 +175,11 @@ export default {
   async historico({ cliente_id, limite = 50 } = {}) {
     let q = sb.from('historico').select('*').order('em', { ascending: false }).limit(limite); if (cliente_id) q = q.eq('cliente_id', cliente_id); return ok(await q);
   },
-  async registrar(acao, detalhe, cliente_id) { try { await sb.from('historico').insert({ acao, detalhe, cliente_id: cliente_id || null, usuario: uid }); } catch (e) { /* histórico nunca bloqueia */ } },
+  async registrar(nome, detalhe, cliente_id) { acao(nome, detalhe, cliente_id || null); try { await sb.from('historico').insert({ acao: nome, detalhe, cliente_id: cliente_id || null, usuario: uid }); } catch (e) { /* histórico nunca bloqueia */ } },
+  // auditoria (só administradores conseguem ler)
+  async auditoria({ de, ate, usuario, cliente_id, tabela, limite = 2000 } = {}) {
+    let q = sb.from('auditoria').select('*').order('em', { ascending: false }).limit(limite);
+    if (de) q = q.gte('em', de); if (ate) q = q.lte('em', ate + 'T23:59:59'); if (usuario) q = q.eq('usuario', usuario); if (cliente_id) q = q.eq('cliente_id', cliente_id); if (tabela) q = q.eq('tabela', tabela);
+    return ok(await q);
+  },
 };

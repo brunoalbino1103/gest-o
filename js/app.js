@@ -17,7 +17,7 @@ export const AREAS = {
   ] },
   pessoal: { nome: 'Departamento Pessoal', curto: 'Pessoal', cor: '#7A4FD6', ct: '#F3EEFC', dep: 'dp', grupos: [
     ['Painel', [['visao', 'Visão geral', T('dp-visao'), false, 'inicio'], ['indicadores', 'Indicadores', T('dp-indicadores'), false, 'grafico']]],
-    ['Rotina do mês', [['importar', 'Importar arquivos', T('importador'), false, 'importar'], ['fechamento', 'Fechamento do mês', T('dp-fechamento'), false, 'fechamento'], ['ponto', 'Ponto e horas extras', T('dp-ponto'), false, 'relogio', true], ['vrvt', 'VR/VT', T('dp-vrvt'), false, 'cartao', true], ['conferencia', 'Conferência', T('dp-conferencia'), false, 'conferir'], ['obrigacoes', 'Obrigações', T('departamento'), false, 'calendarioOk', true]]],
+    ['Rotina do mês', [['importar', 'Importar arquivos', T('importador'), false, 'importar'], ['fechamento', 'Fechamento do mês', T('dp-fechamento'), false, 'fechamento'], ['ponto', 'Ponto e horas extras', T('dp-ponto'), false, 'relogio', true], ['vrvt', 'VR/VT', T('dp-vrvt'), false, 'cartao', true], ['conferencia', 'Conferência', T('dp-conferencia'), false, 'conferir'], ['guias', 'Guias e impostos', T('dp-guias'), false, 'guia'], ['obrigacoes', 'Obrigações', T('departamento'), false, 'calendarioOk', true]]],
     ['Colaboradores', [['colaboradores', 'Colaboradores', T('funcionarios'), false, 'pessoas'], ['colaborador', 'Ficha do colaborador', T('dp-colaborador'), true, 'pessoa'], ['ferias', 'Férias', T('dp-ferias'), false, 'ferias'], ['experiencia', 'Experiência', T('dp-experiencia'), false, 'ampulheta'], ['movimentacoes', 'Admissões e rescisões', T('dp-movimentacoes'), false, 'troca'], ['sst', 'Saúde e segurança', T('dp-sst'), false, 'saude']]],
     ['Empresas e clientes', [['empresas', 'Empresas', T('dp-empresas'), false, 'empresa'], ['portal', 'Portal do cliente', T('portal-equipe'), false, 'portal'], ['documentos', 'Documentos', T('documentos'), false, 'pasta']]],
     ['Ferramentas', [['simulador', 'Simulador', T('dp-simulador'), false, 'calculadora']]],
@@ -30,7 +30,7 @@ export const AREAS = {
   cadastros: { nome: 'Cadastros e configurações', curto: 'Cadastros', cor: '#475467', ct: '#F2F4F7', dep: null, grupos: [
     ['Cadastros', [['clientes', 'Empresas (clientes)', T('clientes'), false, 'empresa'], ['empresa', 'Ficha da empresa', T('cliente'), true, 'empresa']]],
     ['Clientes', [['portal', 'Portal do cliente', T('portal-equipe'), false, 'portal']]],
-    ['Regras e equipe', [['configuracoes', 'Obrigações, feriados e equipe', T('config'), false, 'regras']]],
+    ['Regras e equipe', [['configuracoes', 'Obrigações, feriados e equipe', T('config'), false, 'regras'], ['auditoria', 'Auditoria', T('auditoria'), false, 'auditoria']]],
   ] },
 };
 const abaDe = (area, aba) => AREAS[area].grupos.flatMap((g) => g[1]).find((a) => a[0] === aba);

@@ -155,7 +155,7 @@ function carrega() { if (D) return; try { D = JSON.parse(localStorage.getItem(CH
 let ouvinte = null;
 const filtra = (l, f) => l.filter((x) => Object.entries(f).every(([k, v]) => v === undefined || v === null || v === '' || x[k] === v));
 
-export default {
+const api = {
   demo: true,
   async usuario() { carrega(); const a = (D.portal_acessos || []).find((x) => 'portal:' + x.id === D.logado); if (a) return { id: D.logado, email: a.email }; const p = D.perfis.find((p) => p.id === D.logado); return p ? { id: p.id, email: p.email } : null; },
   async meuPortal() { carrega(); return copia((D.portal_acessos || []).find((x) => 'portal:' + x.id === D.logado) || null); },
@@ -254,7 +254,71 @@ export default {
   },
 
   async historico({ cliente_id, limite = 50 } = {}) { carrega(); return copia(filtra(D.historico, { cliente_id })).slice(-limite).reverse(); },
-  async registrar(acao, detalhe, cliente_id) { carrega(); D.historico.push({ id: D.historico.length + 1, usuario: D.logado, acao, detalhe, cliente_id: cliente_id || null, em: new Date().toISOString() }); if (D.historico.length > 500) D.historico.shift(); grava(); },
+  async auditoria({ de, ate, usuario, cliente_id, tabela, limite = 2000 } = {}) { carrega(); return copia((D.auditoria || []).filter((a) => (!de || a.em >= de) && (!ate || a.em <= ate + 'T23:59:59') && (!usuario || a.usuario === usuario) && (!cliente_id || a.cliente_id === cliente_id) && (!tabela || a.tabela === tabela)).slice(-limite).reverse()); },
+  async registrar(acao, detalhe, cliente_id) { carrega(); audita('acao', acao, null, null, { descricao: detalhe, cliente_id }); D.historico.push({ id: D.historico.length + 1, usuario: D.logado, acao, detalhe, cliente_id: cliente_id || null, em: new Date().toISOString() }); if (D.historico.length > 500) D.historico.shift(); grava(); },
 
   resetar() { localStorage.removeItem(CHAVE); indexedDB.deleteDatabase('contabil_demo_arquivos'); D = null; },
 };
+// ---------- auditoria da demonstração: registra toda gravação (no Supabase quem registra é o banco) ----------
+const LEVES = new Set(['notas', 'folha_itens', 'ponto_cartoes', 'cancelamentos', 'inutilizacoes', 'tarefas']);
+let silencio = 0;
+function audita(tabela, acao, reg, antes, extra = {}) {
+  if (silencio) return;
+  D.auditoria ||= [];
+  const quem = D.perfis.find((p) => p.id === D.logado) || (D.portal_acessos || []).find((x) => 'portal:' + x.id === D.logado);
+  const r = reg || antes || {};
+  const desc = extra.descricao ?? (r.nome || r.nome_arquivo || r.razao_social || r.titulo || r.email || r.tipo || r.descricao || null);
+  D.auditoria.push({ id: (D.auditoria.at(-1)?.id || 0) + 1, em: new Date().toISOString(), usuario: D.logado, email: quem?.email || null, tabela, acao, registro_id: r.id || null,
+    cliente_id: extra.cliente_id ?? (tabela === 'clientes' ? r.id : r.cliente_id) ?? null, descricao: desc ? String(desc).slice(0, 200) : null,
+    antes: LEVES.has(tabela) ? null : antes || null, depois: LEVES.has(tabela) ? null : (extra.depois ?? reg) || null });
+  if (D.auditoria.length > 5000) D.auditoria.splice(0, D.auditoria.length - 5000);
+}
+const acha = (tab, id) => { const x = (D[tab] || []).find((y) => y.id === id); return x ? copia(x) : null; };
+// [tabela, como achar o registro antigo (para "antes"), ação]
+const EMBRULHA = {
+  salvarCliente: ['clientes', (c) => c.id], excluirCliente: ['clientes', (id) => id, 'excluiu'],
+  salvarObrigacao: ['obrigacoes', (o) => o.id], excluirObrigacao: ['obrigacoes', (id) => id, 'excluiu'],
+  salvarFeriado: ['feriados'], excluirFeriado: ['feriados', null, 'excluiu'],
+  salvarPerfil: ['perfis', (p) => p.id], atualizarTarefa: ['tarefas', (id) => id, 'alterou'],
+  enviarDocumento: ['documentos', null, 'criou'], excluirDocumento: ['documentos', (d) => d.id, 'excluiu'], atualizarDocumento: ['documentos', (id) => id, 'alterou'],
+  inserirNota: ['notas', null, 'criou'], atualizarNota: ['notas', (id) => id, 'alterou'],
+  salvarFuncionario: ['funcionarios', (f) => f.id], excluirFuncionario: ['funcionarios', (id) => id, 'excluiu'],
+  salvarMarcacao: ['ferias_marcacoes', (m) => m.id], excluirMarcacao: ['ferias_marcacoes', (id) => id, 'excluiu'],
+  salvarFalta: ['faltas', null, 'criou'], excluirFalta: ['faltas', (id) => id, 'excluiu'],
+  salvarMovimentacao: ['movimentacoes', (m) => m.id], excluirMovimentacao: ['movimentacoes', (id) => id, 'excluiu'],
+  salvarDpEmpresa: ['dp_empresas'],
+};
+for (const [m, [tab, idDe, acaoFixa]] of Object.entries(EMBRULHA)) {
+  const orig = api[m]; if (!orig) continue;
+  api[m] = async function (...args) {
+    carrega(); const id = idDe ? idDe(args[0]) : null; const antes = id ? acha(tab, id) : null;
+    const res = await orig.apply(this, args);
+    const acao = acaoFixa || (antes ? 'alterou' : 'criou');
+    audita(tab, acao, acao === 'excluiu' ? null : (res && typeof res === 'object' ? res : (id ? acha(tab, id) : args[0])), antes);
+    grava(); return res;
+  };
+}
+for (const m of ['inserir', 'alterar', 'apagar', 'gravar']) {
+  const orig = api[m];
+  api[m] = async function (tab, ...args) {
+    carrega();
+    if (m === 'gravar') { const res = await orig.call(this, tab, ...args); (Array.isArray(args[0]) ? args[0] : [args[0]]).forEach((l) => audita(tab, 'gravou', l, null)); grava(); return res; }
+    const antes = m === 'inserir' ? null : acha(tab, args[0]);
+    const res = await orig.call(this, tab, ...args);
+    audita(tab, { inserir: 'criou', alterar: 'alterou', apagar: 'excluiu' }[m], m === 'apagar' ? null : res, antes); grava(); return res;
+  };
+}
+// ações sem gravação de dados
+const acaoDe = { entrar: 'Entrou no sistema', sair: 'Saiu do sistema', abrirDocumento: 'Abriu arquivo', linkDocumento: 'Baixou arquivo' };
+for (const [m, nome] of Object.entries(acaoDe)) {
+  const orig = api[m];
+  api[m] = async function (...args) {
+    if (m === 'sair') { audita('acao', nome, null, null, { descricao: null }); grava(); }
+    silencio += m === 'abrirDocumento' ? 1 : 0;
+    try { const res = await orig.apply(this, args); silencio -= m === 'abrirDocumento' ? 1 : 0;
+      if (m !== 'sair') { const d = args[0]; audita('acao', nome, null, null, m === 'entrar' ? { descricao: String(args[0] || '') } : { descricao: d?.nome_arquivo, cliente_id: d?.cliente_id }); grava(); }
+      return res;
+    } catch (e) { silencio -= m === 'abrirDocumento' ? 1 : 0; throw e; }
+  };
+}
+export default api;

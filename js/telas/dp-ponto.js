@@ -1,7 +1,7 @@
 // Ponto e horas extras: lê os cartões importados (Secullum) da empresa no mês e mostra ocorrências, dia a dia, cartão e fechamento.
 import db from '../db.js';
 import { esc, nomeComp, dataBR, baixarArquivo } from '../util.js';
-import { S } from '../estado.js';
+import { S, mudarComp } from '../estado.js';
 import { topo, recarregarTela } from '../app.js';
 import { analisar, hm, hmin, CLASSE, TIPO_OC, STATUS_RELOGIO } from '../ponto.js';
 import { empresasDP, nomeEmp, escolhaEmpresa } from './dp-comum.js';
@@ -48,7 +48,14 @@ export default async function ponto(el, _r, vivo) {
   topo('Ponto e horas extras', `${nomeEmp(emp)} · ${nomeComp(S.comp)}${per ? ' · período ' + per : ''}`);
   if (!P.length) {
     const outros = [...new Set(cards0.map((c) => c.competencia))].sort().reverse();
-    el.innerHTML = `<div class="card"><div class="vazio"><b>Nenhum cartão de ponto de ${nomeComp(S.comp)}</b>Importe os cartões do relógio em <a href="#/pessoal/importar">Importar arquivos</a>.${outros.length ? `<br>Meses com cartão: ${outros.map((m) => nomeComp(m, true)).join(', ')}.` : ''}</div></div>`;
+    // cartão enviado mas sem leitura (PDF escaneado / imagem)
+    const docsMes = (await db.documentos({ cliente_id: S.empresa, competencia: S.comp }).catch(() => [])).filter((d) => d.tipo === 'cartao_ponto');
+    const motivo = docsMes.length
+      ? `O cartão deste mês foi enviado (<b>${docsMes.map((d) => esc(d.nome_arquivo)).join(', ')}</b>), mas ${docsMes.some((d) => d.dados?.semTexto) ? 'é um PDF escaneado (imagem): o sistema guarda o arquivo, mas não consegue ler as batidas. Peça ao cliente o cartão exportado do relógio em PDF com texto.' : 'o sistema não conseguiu ler as batidas.'}`
+      : 'O cartão de ponto deste mês ainda não foi enviado. Importe em <a href="#/pessoal/importar">Importar arquivos</a>.';
+    el.innerHTML = `<div class="card"><div class="vazio"><b>Sem cartão de ponto lido em ${nomeComp(S.comp)}</b>${motivo}
+      ${outros.length ? `<div style="margin-top:14px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center"><span class="small muted" style="align-self:center">Meses com cartão:</span>${outros.map((m) => `<button class="btn sec mini" data-mes="${m}">${nomeComp(m, true)}</button>`).join('')}</div>` : ''}</div></div>`;
+    el.querySelectorAll('[data-mes]').forEach((b) => b.addEventListener('click', () => { mudarComp(b.dataset.mes); recarregarTela(); }));
     return;
   }
   const T = P.reduce((s, { a }) => { Object.entries(a.tot).forEach(([k, v]) => { if (typeof v === 'number') s[k] = (s[k] || 0) + v; }); return s; }, {});

@@ -26,12 +26,11 @@ export default async function fechamento(el, _r, vivo) {
   }
   const c = S.clientes.find((x) => x.id === S.empresa);
   const t = tiposDe(c.id), its = itensDe(c), ok = its.filter(([k]) => t[k]).length;
-  const outros = docsDe(c.id).filter((d) => !tipoFechamento(d.nome_arquivo, d.tipo));
   topo('Fechamento do mês', `${nomeEmp(c)} · ${nomeComp(S.comp)} · ${ok} de ${its.length} itens recebidos`);
   el.innerHTML = `<div class="lado-a-lado">
     <div class="grow card"><div class="card-h"><h2>Pacote de ${nomeComp(S.comp)}</h2><span class="pill ${ok === its.length ? 'p-ok' : 'p-at'}">${ok === its.length ? 'Completo' : `Faltam ${its.length - ok}`}</span></div>
-      <div class="check">${its.map(([k, nome]) => { const l = t[k] || []; return `<div class="check-it"><span class="st ${l.length ? 'ok' : 'falta'}">${l.length ? '✓' : '!'}</span><div><b>${nome}</b><small>${l.length ? l.map((d) => esc(d.nome_arquivo)).join(' · ') : 'ainda não chegou'}</small></div>${l.length ? `<div class="dir">${l.slice(0, 2).map((d) => `<button class="btn sec mini" data-abre="${d.id}">Abrir</button>`).join('')}</div>` : ''}</div>`; }).join('')}
-      ${outros.length ? `<div class="secao-t">Outros arquivos do mês</div>${outros.map((d) => `<div class="check-it"><span class="st op">·</span><div><b>${esc(d.nome_arquivo)}</b><small>enviado em ${dataBR(d.enviado_em)}</small></div><div class="dir"><button class="btn sec mini" data-abre="${d.id}">Abrir</button></div></div>`).join('')}` : ''}</div></div>
+      <div class="check">${its.map(([k, nome]) => { const l = t[k] || []; return `<div class="check-it"><span class="st ${l.length ? 'ok' : 'falta'}">${l.length ? '✓' : '!'}</span><div><b>${nome}</b><small>${l.length ? l.map((d) => esc(d.nome_arquivo)).join(' · ') : 'ainda não chegou'}</small></div>${l.length ? `<div class="dir">${l.length > 1 ? `<span class="small muted">${l.length} arquivos</span>` : ''}<button class="btn sec mini" data-abre="${l[0].id}" title="Abre o mais recente">Abrir</button></div>` : ''}</div>`; }).join('')}
+      </div></div>
     <div class="aside card"><div class="card-h"><h2>Enviar arquivos do mês</h2></div><div class="card-b"><p class="small muted mt0" style="margin-bottom:10px">Arraste os PDFs do fechamento. O sistema lê cada um, reconhece o que é e preenche colaboradores, folha, guias e férias sozinho.</p><div id="fImp"></div></div></div>
   </div>`;
   importador(el.querySelector('#fImp'), { compacto: true, aoTerminar: () => setTimeout(recarregarTela, 1500) });

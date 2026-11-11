@@ -103,6 +103,8 @@ export async function aplicarTudo(itens, aoProgresso) {
       const ex = cid && jaTem.get(cid).find((d) => d.nome_arquivo === a.nome && +d.tamanho === a.arquivo.size);
       const doc = ex || await db.enviarDocumento(a.arquivo, { cliente_id: cid, departamento: a.departamento, competencia: a.competencia, tipo: a.tipo, dados: resumoDoc(a) });
       if (!ex) conta.arquivos++;
+      // reimportação: corrige mês e tipo do arquivo que já estava no sistema (ex.: regra nova de competência)
+      else if ((a.competencia && ex.competencia !== a.competencia) || (a.tipo && a.tipo !== 'outro' && ex.tipo !== a.tipo)) { try { Object.assign(ex, await db.atualizarDocumento(ex.id, { competencia: a.competencia || ex.competencia, tipo: a.tipo !== 'outro' ? a.tipo : ex.tipo })); } catch (e) { /* segue */ } }
       a.documento = doc;
       if (!cid) continue;
       const d = a.dados || {};

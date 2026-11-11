@@ -41,7 +41,7 @@ export default async function departamento(el, _r, vivo, ctx = {}) {
     <div class="tw" style="max-height:70vh;overflow:auto;margin-top:8px" id="dCorpo"></div>
    </div>
    ${dep === 'fiscal' ? '<div class="card" id="dNotas"></div>' : ''}
-   <div class="card" id="dDocs"></div>`;
+   ${dep === 'dp' ? '' : '<div class="card" id="dDocs"></div>'}`;
   const $c = (s) => el.querySelector(s);
 
   const filtrados = () => {
@@ -138,7 +138,8 @@ export default async function departamento(el, _r, vivo, ctx = {}) {
       : '<div class="vazio"><b>Nenhuma nota importada neste mês</b>Importe os XML na tela Documentos: o sistema identifica o cliente pelo CNPJ e monta o Painel Fiscal dele.</div>'}`;
   }
 
-  // documentos do mês deste departamento
+  // documentos do mês deste departamento (no DP eles ficam no Fechamento do mês)
+  if (dep === 'dp') return;
   const docs = docs0.filter((d) => daEmpresa(d.cliente_id));
   const porTipo = {}; docs.forEach((d) => { porTipo[d.tipo] = (porTipo[d.tipo] || 0) + 1; });
   $c('#dDocs').innerHTML = `<div class="card-h"><h2>Documentos recebidos · ${nomeComp(S.comp)}</h2><a class="btn sec mini" href="#/${area}/importar">Importar documentos</a></div>

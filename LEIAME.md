@@ -109,6 +109,7 @@ No Supabase: SQL Editor → New query → cole o conteúdo do arquivo → Run.
 2. `supabase/atualizacao-02-importacao.sql` (já rodado)
 3. `supabase/atualizacao-03-dp-completo.sql` — ficha completa, eventos, SST, tabelas INSS/IRRF
 4. `supabase/atualizacao-04-portal.sql` — portal do cliente
+5. `supabase/atualizacao-05-auditoria.sql` — auditoria (registra tudo o que acontece; consulta em ⚙ → Auditoria, só administradores)
 
 ## Portal do cliente
 1. No sistema: ⚙ Cadastros → Portal do cliente → Acessos → + Acesso (e-mail do cliente + empresa).

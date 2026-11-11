@@ -33,14 +33,22 @@ export default async function indicadores(el, _r, vivo) {
 
   // ---- mês a mês (últimos 12 até a competência escolhida) ----
   const meses = []; for (let i = 11; i >= 0; i--) meses.push(somaMes(S.comp, -i));
-  if (S.todos) { const prim = res.reduce((m, r) => (r.competencia < m ? r.competencia : m), meses[0]); while (meses[0] > prim) meses.unshift(somaMes(meses[0], -1)); }
+  if (S.todos) { const prim = [...res, ...itens].reduce((m, r) => (r.competencia < m ? r.competencia : m), meses[0]); while (meses[0] > prim) meses.unshift(somaMes(meses[0], -1)); }
+  const contrib = new Set(funcs.filter((f) => f.contribuinte).map((f) => f.id));
   const linhas = meses.map((c) => {
-    const r = res.find((x) => x.competencia === c); if (!r) return { c };
-    const rub = r.rubricas || [];
+    const r0 = res.find((x) => x.competencia === c);
+    const its = itens.filter((x) => x.competencia === c);
+    if (!r0 && !its.length) return { c };
+    // sem Resumo da folha (ou resumo incompleto): soma o Extrato mensal / holerites de cada pessoa
+    const ev = its.flatMap((i) => i.eventos || []);
+    const deItens = { proventos: its.reduce((s, i) => s + (+i.proventos || 0), 0), fgts: its.reduce((s, i) => s + (+i.fgts || 0), 0), empregados: its.filter((i) => !contrib.has(i.funcionario_id)).length,
+      admissoes: funcs.filter((f) => f.admissao?.startsWith(c)).length, demitidos: funcs.filter((f) => f.desligamento?.startsWith(c)).length };
+    const r = { ...deItens, ...Object.fromEntries(Object.entries(r0 || {}).filter(([, v]) => v !== null && v !== 0 && v !== '')) };
+    const rub = r0?.rubricas?.length ? r0.rubricas : ev.filter((x) => x.tipo !== 'D');
     const he = rub.filter((x) => RE_HE.test(x.descricao)).reduce((s, x) => s + (+x.valor || 0), 0);
     const afast = rub.filter((x) => RE_AFAST.test(x.descricao)).reduce((s, x) => s + num(x.referencia), 0);
     const enc = (+r.proventos || 0) * patronal;
-    return { c, r, emp: +r.empregados || 0, adm: +r.admissoes || 0, dem: +r.demitidos || 0, prov: +r.proventos || 0, fgts: +r.fgts || 0, enc, custo: (+r.proventos || 0) + (+r.fgts || 0) + enc, he, afast };
+    return { c, r, fonte: r0 ? 'resumo' : 'extrato', emp: +r.empregados || 0, adm: +r.admissoes || 0, dem: +r.demitidos || 0, prov: +r.proventos || 0, fgts: +r.fgts || 0, enc, custo: (+r.proventos || 0) + (+r.fgts || 0) + enc, he, afast };
   });
   const comDados = linhas.filter((l) => l.r);
   const atual = linhas[linhas.length - 1];
@@ -80,7 +88,7 @@ export default async function indicadores(el, _r, vivo) {
       ${kpi(absent != null && absent > 0.03 ? 'at' : 'ok', 'Faltas no ponto', absent != null ? pct(absent) : '—', absent != null ? `${hFalta.toFixed(1).replace('.', ',')} h de falta · ${hEx.toFixed(1).replace('.', ',')} h extras${bCred || bDeb ? ` · banco +${bCred.toFixed(1).replace('.', ',')} h / −${bDeb.toFixed(1).replace('.', ',')} h` : ''}` : 'cartões do mês não importados')}</div>
     <div class="card"><div class="card-h"><h2>Custo da folha por mês${S.todos ? ' · todo o histórico' : ' · últimos 12 meses'}</h2><span class="small muted">passe o mouse nas barras</span></div>${comDados.length ? grafico : ''}
       <div class="tw"><table class="t"><thead><tr><th>Mês</th><th class="r">Pessoas</th><th class="r">Adm.</th><th class="r">Desl.</th><th class="r">Salários e proventos</th><th class="r">FGTS</th>${patronal ? '<th class="r">INSS patronal (estim.)</th>' : ''}<th class="r">Custo total</th><th class="r">Horas extras (R$)</th><th class="r">Dias afastados</th></tr></thead><tbody>
-      ${linhas.slice().reverse().map((l) => l.r ? `<tr ${l.c === S.comp ? 'style="background:var(--ct)"' : ''}><td>${nomeComp(l.c, true)}</td><td class="r">${l.emp}</td><td class="r">${l.adm}</td><td class="r">${l.dem}</td><td class="r num">${brl(l.prov)}</td><td class="r num">${brl(l.fgts)}</td>${patronal ? `<td class="r num">${brl(l.enc)}</td>` : ''}<td class="r num"><b>${brl(l.custo)}</b></td><td class="r num">${l.he ? brl(l.he) : '—'}</td><td class="r">${l.afast || '—'}</td></tr>` : `<tr><td>${nomeComp(l.c, true)}</td><td colspan="${patronal ? 9 : 8}" class="small muted">sem folha importada</td></tr>`).join('')}
+      ${linhas.slice().reverse().map((l) => l.r ? `<tr ${l.c === S.comp ? 'style="background:var(--ct)"' : ''}><td>${nomeComp(l.c, true)}${l.fonte === 'extrato' ? '<div class="small muted">pelo extrato mensal</div>' : ''}</td><td class="r">${l.emp}</td><td class="r">${l.adm}</td><td class="r">${l.dem}</td><td class="r num">${brl(l.prov)}</td><td class="r num">${brl(l.fgts)}</td>${patronal ? `<td class="r num">${brl(l.enc)}</td>` : ''}<td class="r num"><b>${brl(l.custo)}</b></td><td class="r num">${l.he ? brl(l.he) : '—'}</td><td class="r">${l.afast || '—'}</td></tr>` : `<tr><td>${nomeComp(l.c, true)}</td><td colspan="${patronal ? 9 : 8}" class="small muted">sem folha importada</td></tr>`).join('')}
       </tbody></table></div></div>
     <div class="card"><div class="card-h"><h2>Provisão de férias e 13º em ${dataBR(ref)}</h2><button class="btn sec mini" id="pCsv">${ico('baixar')}Planilha (CSV)</button></div>
       <div class="tw"><table class="t"><thead><tr><th>Colaborador</th><th class="r">Salário</th><th class="r">13º (avos)</th><th class="r">Provisão 13º</th><th class="r">Férias (dias)</th><th class="r">Provisão férias + 1/3</th><th class="r">FGTS${patronal ? ' + INSS' : ''}</th><th class="r">Total</th></tr></thead><tbody>

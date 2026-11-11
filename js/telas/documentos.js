@@ -23,13 +23,19 @@ export default async function documentos(el, _p, vivo, ctx = {}) {
      <div id="dLista"><div class="carregando">Carregando…</div></div></div>`;
   if (imp) areaImportacao(el.querySelector('#dImp'), { cliente: emp, dep: ctx.dep, aoTerminar: () => carregar() });
   const $c = (s) => el.querySelector(s);
-  let docs = [];
-  const carregar = async () => { docs = await db.documentos(S.todos ? {} : { competencia: S.comp }); if (vivo()) lista(); };
+  let docs = []; const sel = new Set(); let L = [];
+  const podeApagar = (d) => eAdmin() || d.enviado_por === S.perfil?.id;
+  const carregar = async () => { docs = await db.documentos(S.todos ? {} : { competencia: S.comp }); const ids = new Set(docs.map((d) => d.id)); [...sel].forEach((i) => { if (!ids.has(i)) sel.delete(i); }); if (vivo()) lista(); };
+  const barraSel = () => {
+    const b = $c('#dSel'); if (!b) return; const n = [...sel].filter((i) => L.some((d) => d.id === i)).length;
+    b.hidden = !n; b.innerHTML = `<b>${n} selecionado(s)</b><button class="btn sec mini" id="selLimpa">Limpar seleção</button><button class="btn mini perigo" id="selApaga">Excluir selecionados</button>`;
+    const todos = $c('#selTodos'); if (todos) { const ap = L.filter(podeApagar); todos.checked = ap.length > 0 && ap.every((d) => sel.has(d.id)); todos.indeterminate = !todos.checked && n > 0; }
+  };
   const lista = () => {
     const q = semAcento(F.busca);
-    const L = docs.filter((d) => (!S.empresa || d.cliente_id === S.empresa) && (!F.dep || d.departamento === F.dep) && (!F.tipo || d.tipo === F.tipo) && (!F.so || !d.cliente_id) && (!q || semAcento(d.nome_arquivo + ' ' + nomeCliente(d.cliente_id)).includes(q)));
-    $c('#dLista').innerHTML = L.length ? `<div class="tw" style="max-height:640px;overflow:auto"><table class="t"><thead><tr><th>Arquivo</th><th>Cliente</th>${S.todos ? '<th>Mês</th>' : ''}<th>Departamento</th><th>Tipo</th><th>Enviado</th><th></th></tr></thead><tbody>
-      ${L.slice(0, 500).map((d) => `<tr data-id="${d.id}"><td><button class="lk-doc" data-abre style="border:0;background:none;padding:0;color:var(--co-dk);text-align:left;word-break:break-all;font-weight:500">${esc(d.nome_arquivo)}</button><div class="small muted">${tamanho(d.tamanho || 0)}${d.dados?.tipo === 'nota' ? ' · ' + resumoDados(d.dados) : ''}</div></td>
+    L = docs.filter((d) => (!S.empresa || d.cliente_id === S.empresa) && (!F.dep || d.departamento === F.dep) && (!F.tipo || d.tipo === F.tipo) && (!F.so || !d.cliente_id) && (!q || semAcento(d.nome_arquivo + ' ' + nomeCliente(d.cliente_id)).includes(q)));
+    $c('#dLista').innerHTML = L.length ? `<div class="sel-barra" id="dSel" hidden></div><div class="tw" style="max-height:640px;overflow:auto"><table class="t"><thead><tr><th style="width:36px"><input type="checkbox" id="selTodos" title="Selecionar todos os ${L.length} arquivos da lista" aria-label="Selecionar tudo"></th><th>Arquivo</th><th>Cliente</th>${S.todos ? '<th>Mês</th>' : ''}<th>Departamento</th><th>Tipo</th><th>Enviado</th><th></th></tr></thead><tbody>
+      ${L.slice(0, 500).map((d) => `<tr data-id="${d.id}"><td>${podeApagar(d) ? `<input type="checkbox" data-sel ${sel.has(d.id) ? 'checked' : ''} aria-label="Selecionar ${esc(d.nome_arquivo)}">` : ''}</td><td><button class="lk-doc" data-abre style="border:0;background:none;padding:0;color:var(--co-dk);text-align:left;word-break:break-all;font-weight:500">${esc(d.nome_arquivo)}</button><div class="small muted">${tamanho(d.tamanho || 0)}${d.dados?.tipo === 'nota' ? ' · ' + resumoDados(d.dados) : ''}</div></td>
         <td>${d.cliente_id ? esc(nomeCliente(d.cliente_id)) : '<span class="pill p-at">Sem cliente</span>'}</td>
         ${S.todos ? `<td class="small">${d.competencia ? nomeComp(d.competencia, true) : '—'}</td>` : ''}<td>${d.departamento ? `<span class="pill p-${d.departamento}">${DEPS[d.departamento].nome}</span>` : '—'}</td>
         <td>${TIPOS_DOC[d.tipo] || esc(d.tipo)}</td>
@@ -37,6 +43,7 @@ export default async function documentos(el, _p, vivo, ctx = {}) {
         <td style="white-space:nowrap"><button class="btn sec mini" data-baixa>Baixar</button> <button class="btn sec mini" data-edita>Editar</button> ${eAdmin() || d.enviado_por === S.perfil?.id ? '<button class="btn-x" data-apaga aria-label="Excluir" title="Excluir">×</button>' : ''}</td></tr>`).join('')}
       </tbody></table></div>${L.length > 500 ? `<p class="small muted" style="padding:10px 18px">Mostrando 500 de ${L.length}. Use os filtros.</p>` : ''}`
       : `<div class="vazio">${docs.length ? 'Nenhum arquivo com esse filtro.' : `<b>Nenhum arquivo em ${quando}</b>Arraste os arquivos na área acima.`}</div>`;
+    barraSel();
   };
   await carregar();
 
@@ -44,8 +51,22 @@ export default async function documentos(el, _p, vivo, ctx = {}) {
   $c('#fDep').addEventListener('change', (e) => { F.dep = e.target.value; lista(); });
   $c('#fTipo').addEventListener('change', (e) => { F.tipo = e.target.value; lista(); });
   $c('#fSem').addEventListener('change', (e) => { F.so = e.target.checked; lista(); });
+  // seleção: um a um, "selecionar tudo" (todos os arquivos que o filtro mostra) e excluir em lote
+  $c('#dLista').addEventListener('change', (e) => {
+    if (e.target.id === 'selTodos') { L.filter(podeApagar).forEach((d) => (e.target.checked ? sel.add(d.id) : sel.delete(d.id))); el.querySelectorAll('[data-sel]').forEach((c) => { c.checked = e.target.checked; }); barraSel(); return; }
+    if (e.target.matches('[data-sel]')) { const id = e.target.closest('[data-id]').dataset.id; if (e.target.checked) sel.add(id); else sel.delete(id); barraSel(); }
+  });
   $c('#dLista').addEventListener('click', async (e) => {
-    const tr = e.target.closest('[data-id]'); if (!tr) return; const d = docs.find((x) => x.id === tr.dataset.id);
+    if (e.target.id === 'selLimpa') { sel.clear(); lista(); return; }
+    if (e.target.id === 'selApaga') {
+      const alvo = L.filter((d) => sel.has(d.id) && podeApagar(d)); if (!alvo.length) return;
+      if (!(await confirmar('Excluir arquivos', `Excluir ${alvo.length} arquivo(s)? Os arquivos e as notas lidas deles saem do sistema. Não dá para desfazer.`, `Excluir ${alvo.length}`))) return;
+      const b = e.target; b.disabled = true; let ok = 0, erro = 0;
+      for (const d of alvo) { b.textContent = `Excluindo ${ok + erro + 1} de ${alvo.length}…`; try { await db.excluirDocumento(d); sel.delete(d.id); ok++; } catch (er) { erro++; } }
+      await db.registrar('Excluiu documentos em lote', `${ok} arquivo(s)${erro ? `, ${erro} com erro` : ''}`, S.empresa || null);
+      aviso(`${ok} arquivo(s) excluído(s).${erro ? ` ${erro} não puderam ser excluídos.` : ''}`, erro ? 'erro' : 'ok'); carregar(); return;
+    }
+    const tr = e.target.closest('[data-id]'); if (!tr || e.target.matches('[data-sel]')) return; const d = docs.find((x) => x.id === tr.dataset.id);
     try {
       if (e.target.closest('[data-abre]')) { const w = window.open('', '_blank'); const u = await db.abrirDocumento(d); if (w) w.location = u; else location.href = u; }
       if (e.target.closest('[data-baixa]')) { const u = await db.linkDocumento(d); const a = document.createElement('a'); a.href = u; a.download = d.nome_arquivo; a.click(); }

@@ -110,6 +110,11 @@ function resumoFolha(L) {
   r.sal_familia = g(/\(-\)\s*Sal[áa]rio Fam[íi]lia:\s*([\d.,]+)/); r.sal_maternidade = g(/\(-\)\s*Sal[áa]rio Maternidade:\s*([\d.,]+)/);
   r.empregados = g(/No\.? Empregados:\s*(\d+)/); r.contribuintes = g(/No\.? Contribuintes:\s*(\d+)/); r.admissoes = g(/Admiss[õo]es:\s*(\d+)/); r.demitidos = g(/Demitido:\s*(\d+)/); r.ferias = g(/F[ée]rias:\s*(\d+)/);
   for (const l of L) { const m = l.match(/^(\d{2,5})\s+(.+?)\s+(\d+)\s+([\d:.,]+)\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s*\*?$/); if (m) r.rubricas.push({ codigo: m[1], descricao: m[2], pessoas: +m[3], referencia: m[4], valor: n(m[5]) }); }
+  // versão curta do resumo (sem o quadro de bases no fim): tira FGTS, INSS e nº de empregados das rubricas
+  const rub = (re) => r.rubricas.filter((x) => re.test(x.descricao));
+  if (!r.fgts) r.fgts = rub(/F\.?\s?G\.?\s?T\.?\s?S/i).reduce((s, x) => s + x.valor, 0);
+  if (!r.inss) r.inss = Math.round(rub(/^I\.?\s?N\.?\s?S\.?\s?S\.?\b|INSS EMPREGAD/i).filter((x) => !/F[EÉ]RIAS|13/i.test(x.descricao)).reduce((s, x) => s + x.valor, 0) * 100) / 100;
+  if (!r.empregados) r.empregados = Math.max(0, ...r.rubricas.filter((x) => !/PRO.?LABORE|EMPREGADOR|F\.?\s?G\.?\s?T\.?\s?S|I\.?\s?N\.?\s?S\.?\s?S/i.test(x.descricao)).map((x) => x.pessoas));
   return r;
 }
 
@@ -247,7 +252,13 @@ export async function reconhecer(arquivo) {
         const tn = tipoPeloNome(arquivo.name);
         return { ...base, tipo: tn, departamento: TIPOS[tn][1] || depPeloNome(arquivo.name), competencia: compNome, semTexto: true, paginas: pdf.total, resumo: 'PDF escaneado (imagem): guardado, sem leitura dos dados' };
       }
-      if (/PROGRAMA[ÇC][ÃA]O DE F[ÉE]RIAS/.test(t)) return r('ferias_programacao', { colaboradores: programacaoFerias(L), data_base: iso((t.match(/Data base:\s*(\d{2}\/\d{2}\/\d{4})/) || [])[1]) });
+      if (/PROGRAMA[ÇC][ÃA]O DE F[ÉE]RIAS/.test(t)) {
+        // mês do fechamento: o do nome do arquivo; senão, o relatório tirado até o dia 10 é do fechamento do mês anterior
+        const dbase = iso((t.match(/Data base:\s*(\d{2}\/\d{2}\/\d{4})/) || [])[1]), emis = iso((t.match(/Emiss[ãa]o:\s*(\d{2}\/\d{2}\/\d{4})/) || [])[1]);
+        let c = compNome;
+        if (!c && dbase) { c = dbase.slice(0, 7); if ((!emis || emis === dbase) && +dbase.slice(8, 10) <= 10) { const [y, m] = c.split('-').map(Number); c = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`; } }
+        return r('ferias_programacao', { colaboradores: programacaoFerias(L), data_base: dbase }, { competencia: c || h.competencia });
+      }
       if (/RESUMO DA FOLHA/.test(t)) return r('folha_resumo', resumoFolha(L));
       if (/EXTRATO MENSAL/.test(t) && /Empr\.?:/.test(t)) return r('folha_extrato', { colaboradores: folhaExtrato(L) });
       if (/RELA[ÇC][ÃA]O GERAL DOS L[ÍI]QUIDOS/.test(t)) return r('liquidos', { colaboradores: liquidos(L) });
