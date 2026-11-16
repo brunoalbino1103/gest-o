@@ -7,6 +7,11 @@ import { topo, recarregarTela } from '../app.js';
 import { importador } from './importador.js';
 import { ITENS_FECHAMENTO, tipoFechamento, empresasDP, nomeEmp } from './dp-comum.js';
 
+// visão de todas as empresas: quadro por etapas ou tabela com cada item (fica guardada neste navegador)
+let vista = (() => { try { return localStorage.getItem('contabil_fech_vista') || 'quadro'; } catch (e) { return 'quadro'; } })();
+const seletorVista = () => `<div class="seg" role="group" aria-label="Visão">${[['quadro', 'Quadro'], ['tabela', 'Tabela']].map(([k, t]) => `<button data-vista="${k}" aria-pressed="${vista === k}">${t}</button>`).join('')}</div>`;
+const ligarVista = (el) => el.querySelectorAll('[data-vista]').forEach((b) => b.addEventListener('click', () => { vista = b.dataset.vista; try { localStorage.setItem('contabil_fech_vista', vista); } catch (e) { /* ok */ } recarregarTela(); }));
+
 export default async function fechamento(el, _r, vivo) {
   const [docs, cfgs] = await Promise.all([db.documentos(S.todos ? { departamento: 'dp' } : { competencia: S.comp, departamento: 'dp' }), db.dpEmpresas()]); if (!vivo()) return;
   const temSind = new Set(cfgs.filter((c) => c.sindicato).map((c) => c.cliente_id));
@@ -16,12 +21,28 @@ export default async function fechamento(el, _r, vivo) {
   const tiposDe = (cid, comp) => { const m = {}; docsDe(cid).filter((d) => !comp || d.competencia === comp).forEach((d) => { const t = tipoFechamento(d.nome_arquivo, d.tipo); if (t) (m[t] ||= []).push(d); }); return m; };
 
   if (S.todos) return todosOsMeses(el, emps, itensDe, tiposDe);
+  if (!S.empresa && vista === 'quadro') {
+    const guias = await db.listar('guias', { competencia: S.comp }).catch(() => []); if (!vivo()) return;
+    const enviadas = new Set(guias.filter((g) => g.detalhe?.enviado_em).map((g) => g.cliente_id));
+    const cards = emps.map((c) => { const t = tiposDe(c.id), its = itensDe(c), ok = its.filter(([k]) => t[k]).length, falta = its.filter(([k]) => !t[k]).map(([, n]) => n);
+      return { c, ok, n: its.length, falta, col: !ok ? 'sem' : ok < its.length ? 'faltam' : enviadas.has(c.id) ? 'fechado' : 'enviar' }; });
+    const COLS = [['sem', 'Sem arquivos', 'var(--na)'], ['faltam', 'Faltam arquivos', 'var(--at)'], ['enviar', 'Guias a enviar', 'var(--co)'], ['fechado', 'Fechado', 'var(--ok)']];
+    const fech = cards.filter((x) => x.col === 'fechado').length;
+    topo('Fechamento do mês', `${nomeComp(S.comp)} · cada empresa na etapa em que está. Clique numa empresa para ver o pacote e enviar arquivos.`);
+    const card = (x) => `<button class="qd-c" data-escolhe="${x.c.id}" title="${esc(x.falta.length ? 'Falta: ' + x.falta.join(', ') : 'Pacote completo')}"><b>${esc(nomeEmp(x.c))}</b><small>${x.col === 'sem' ? 'nada recebido ainda' : x.col === 'faltam' ? 'falta: ' + esc(x.falta.slice(0, 2).join(', ')) + (x.falta.length > 2 ? ` +${x.falta.length - 2}` : '') : x.col === 'enviar' ? 'pacote completo · enviar guias' : 'guias enviadas'}</small><div class="mini-prog"><span style="width:${x.n ? Math.round(x.ok / x.n * 100) : 0}%;${x.col === 'fechado' ? 'background:var(--ok)' : ''}"></span></div></button>`;
+    el.innerHTML = `<div class="qd-barra">${seletorVista()}<div class="qd-prog" title="${fech} de ${cards.length} fechadas"><span style="width:${cards.length ? fech / cards.length * 100 : 0}%"></span></div><span class="small muted">${fech} de ${cards.length} empresas fechadas</span></div>
+      ${cards.length ? `<div class="qd">${COLS.map(([k, t, cor]) => { const l = cards.filter((x) => x.col === k); return `<div class="qd-col"><div class="qd-h"><span class="cx-st" style="border-color:${cor}${k === 'fechado' ? ';background:' + cor : ''}"></span>${t}<span>${l.length}</span></div><div class="qd-cards">${l.slice(0, 80).map(card).join('')}${l.length > 80 ? `<div class="qd-mais">+${l.length - 80} empresas</div>` : ''}</div></div>`; }).join('')}</div>`
+        : '<div class="card"><div class="vazio"><b>Nenhuma empresa com funcionários</b>Marque "tem funcionários" no cadastro da empresa.</div></div>'}`;
+    ligarVista(el);
+    return;
+  }
   if (!S.empresa) {
     topo('Fechamento do mês', `${nomeComp(S.comp)} · o que já chegou de cada empresa. Escolha uma empresa no topo para enviar os arquivos.`);
-    el.innerHTML = `<div class="card"><div class="tw"><table class="t mx"><thead><tr><th style="min-width:200px">Empresa</th>${ITENS_FECHAMENTO.map(([, t]) => `<th class="ob">${t}</th>`).join('')}<th class="r">Completo</th></tr></thead><tbody>
+    el.innerHTML = `<div class="qd-barra">${seletorVista()}</div><div class="card"><div class="tw"><table class="t mx"><thead><tr><th style="min-width:200px">Empresa</th>${ITENS_FECHAMENTO.map(([, t]) => `<th class="ob">${t}</th>`).join('')}<th class="r">Completo</th></tr></thead><tbody>
       ${emps.map((c) => { const t = tiposDe(c.id), its = itensDe(c), ok = its.filter(([k]) => t[k]).length;
         return `<tr><td><button class="lk" data-escolhe="${c.id}" style="border:0;background:none;padding:0;font-weight:600;color:var(--co-dk);text-align:left">${esc(nomeEmp(c))}</button></td>${ITENS_FECHAMENTO.map(([k]) => its.some((x) => x[0] === k) ? `<td class="cel"><span class="st ${t[k] ? 'st-concluida' : 'st-pendente'}" style="display:grid">${t[k] ? '✓' : '○'}</span></td>` : '<td class="cel"><span class="st st-nao_aplica" style="display:grid">–</span></td>').join('')}<td class="r num"><b>${ok}/${its.length}</b></td></tr>`; }).join('') || '<tr><td colspan="12"><div class="vazio">Nenhuma empresa com funcionários.</div></td></tr>'}
     </tbody></table></div></div>`;
+    ligarVista(el);
     return;
   }
   const c = S.clientes.find((x) => x.id === S.empresa);

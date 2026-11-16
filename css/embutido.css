@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap");
 /* Painéis originais (Férias e Fiscal) abertos DENTRO do sistema: mesmo visual do sistema novo.
    Só vale com a classe "embutido" no <html> (posta quando a página abre com ?embed=1).
    Conteúdo, cálculos e informações dos painéis não mudam. */
@@ -43,3 +44,14 @@ html.embutido .sidebar .nav-group[hidden]{display:none}
 html.embutido .sidebar{flex-wrap:wrap;overflow:visible;padding:4px 12px}
 html.embutido .sidebar .tab-btn{height:38px}
 html.embutido .sidebar .nav-group:has(.mes-seletor){padding-right:10px;margin-right:6px}
+
+/* visual moderno (mesmo do sistema): fonte Inter, tons neutros, linhas finas */
+html.embutido{--sis-bg:#FBFBFC;--sis-line:#E8E8EC;--sis-na:#9A9DA4;--sis-ink2:#3B3E44}
+html.embutido body,html.embutido button,html.embutido input,html.embutido select,html.embutido textarea{font-family:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+html.embutido body{font-size:13px}
+html.embutido .card,html.embutido .kpi{border-radius:10px;box-shadow:0 1px 2px rgba(20,20,30,.03)}
+html.embutido .topbar,html.embutido .sidebar{background:#FBFBFC}
+html.embutido .tab-btn{font-size:12.5px;font-weight:500;height:40px}
+html.embutido .tab-btn.active{color:#1A1B1E;border-bottom-color:#1A1B1E}
+html.embutido .tab-btn.active .ic{color:var(--sis-c)}
+html.embutido .tab-btn .nb,html.embutido .tab-btn.active .nb{background:#F3F3F5;color:#6E727A;font-weight:500}

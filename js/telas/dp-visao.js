@@ -31,33 +31,38 @@ export default async function visaoDP(el, _r, vivo) {
   const docAlert = edocs.filter((d) => daEmp(d.cliente_id) && d.validade && diasAte(d.validade) <= 30);
   const emp = S.empresa ? S.clientes.find((c) => c.id === S.empresa) : null; const cfg = emp ? cfgs.find((c) => c.cliente_id === emp.id) : null;
 
-  topo('Visão geral', `${emp ? nomeEmp(emp) : 'Todas as empresas'} · ${S.todos ? 'pendências de todos os meses; fechamento e obrigações de ' + nomeComp(S.comp) : nomeComp(S.comp)}`);
-  const kpi = (cls, l, v, s, href) => `<a class="kpi ${cls}" href="${href}" style="text-decoration:none;color:inherit"><span class="l">${l}</span><span class="v">${v}</span><span class="s">${s}</span></a>`;
-  const prior = [
-    ...ferAlert.map((x) => ({ ord: x.p.diasLimite, tag: x.n === 'vencida' ? 'bad' : 'at', t: `Férias ${x.n === 'vencida' ? 'vencidas' : 'a marcar'}: ${x.f.nome}`, s: `${nomeC(x.f.cliente_id)} · limite para sair ${dataBR(x.p.limite)}`, href: '#/pessoal/ferias' })),
-    ...exp.map(({ f, x }) => ({ ord: x.dias, tag: x.dias <= 7 ? 'bad' : 'at', t: `Experiência: ${f.nome}`, s: `${nomeC(f.cliente_id)} · ${x.fase === '1º período' ? 'prorrogar ou desligar' : 'efetivar ou desligar'} até ${dataBR(x.prox)}`, href: '#/pessoal/experiencia' })),
-    ...movAb.filter((m) => m.prazo).map((m) => ({ ord: diasAte(m.prazo), tag: diasAte(m.prazo) <= 3 ? 'bad' : 'at', t: `${{ admissao: 'Admissão', rescisao: 'Rescisão', afastamento: 'Afastamento', alteracao: 'Alteração', ferias: 'Férias' }[m.tipo]}: ${m.nome}`, s: `${nomeC(m.cliente_id)} · prazo ${dataBR(m.prazo)}`, href: '#/pessoal/movimentacoes' })),
-    ...peds.filter((p) => daEmp(p.cliente_id)).map((p) => ({ ord: diasAte(p.criado_em.slice(0, 10)), tag: 'bad', t: `Pedido do cliente: ${{ admissao: 'admissão', rescisao: 'desligamento', ferias: 'férias', alteracao: 'alteração', afastamento: 'afastamento', outro: 'outro assunto' }[p.tipo] || p.tipo}`, s: `${nomeC(p.cliente_id)} · ${p.titulo || ''} · recebido ${dataBR(p.criado_em)}`, href: '#/pessoal/portal' })),
-    ...asoAlert.map(({ f, u }) => ({ ord: diasAte(u.vencimento), tag: diasAte(u.vencimento) < 0 ? 'bad' : 'at', t: `ASO ${diasAte(u.vencimento) < 0 ? 'vencido' : 'vencendo'}: ${f.nome}`, s: `${nomeC(f.cliente_id)} · próximo exame ${dataBR(u.vencimento)}`, href: '#/pessoal/sst' })),
-    ...docAlert.map((d) => ({ ord: diasAte(d.validade), tag: diasAte(d.validade) < 0 ? 'bad' : 'at', t: `Programa de SST ${diasAte(d.validade) < 0 ? 'vencido' : 'vencendo'}: ${d.tipo.toUpperCase()}`, s: `${nomeC(d.cliente_id)} · validade ${dataBR(d.validade)}`, href: '#/pessoal/sst' })),
-    ...obrAt.map((t) => ({ ord: diasAte(t.vencimento), tag: 'bad', t: `${t.titulo} atrasada`, s: `${nomeC(t.cliente_id)} · venceu ${dataBR(t.vencimento)}`, href: '#/pessoal/obrigacoes' })),
+  topo('Caixa de entrada', `${emp ? nomeEmp(emp) : 'Todas as empresas'} · tudo o que precisa de ação, do mais urgente para o mais tranquilo`);
+  const TIPO_MOV = { admissao: 'Admissão', rescisao: 'Rescisão', afastamento: 'Afastamento', alteracao: 'Alteração', ferias: 'Férias' };
+  const TIPO_PED = { admissao: 'admissão', rescisao: 'desligamento', ferias: 'férias', alteracao: 'alteração', afastamento: 'afastamento', outro: 'outro assunto' };
+  // fechamento: prazo = dia 20 do mês seguinte (FGTS e DCTFWeb)
+  const [ay, am] = S.comp.split('-').map(Number); const prazoFech = new Date(ay, am, 20).toLocaleDateString('sv-SE');
+  const faltando = emps.filter((c) => !ITENS_FECHAMENTO.filter(([k]) => k !== 'sindical').every(([k]) => recebidos(c.id).has(k)));
+  const L = [
+    ...peds.filter((p) => daEmp(p.cliente_id)).map((p) => ({ ord: Math.min(0, diasAte(p.criado_em.slice(0, 10))), st: 'co', cat: 'Portal', t: `Pedido de ${TIPO_PED[p.tipo] || p.tipo}${p.titulo ? ': ' + p.titulo : ''}`, s: nomeC(p.cliente_id), d: 'novo', href: '#/pessoal/portal' })),
+    ...movAb.filter((m) => m.prazo).map((m) => ({ ord: diasAte(m.prazo), cat: TIPO_MOV[m.tipo] || 'Movimentação', t: `${TIPO_MOV[m.tipo] || ''} de ${m.nome}`, s: nomeC(m.cliente_id), href: '#/pessoal/movimentacoes' })),
+    ...ferAlert.map((x) => ({ ord: x.p.diasLimite, cat: 'Férias', t: `Férias ${x.n === 'vencida' ? 'vencidas' : 'a marcar'} de ${x.f.nome}`, s: nomeC(x.f.cliente_id), href: '#/pessoal/ferias' })),
+    ...exp.map(({ f, x }) => ({ ord: x.dias, cat: 'Experiência', t: `${x.fase === '1º período' ? 'Prorrogar ou desligar' : 'Efetivar ou desligar'} ${f.nome}`, s: nomeC(f.cliente_id), href: '#/pessoal/experiencia' })),
+    ...asoAlert.map(({ f, u }) => ({ ord: diasAte(u.vencimento), cat: 'SST', t: `ASO ${diasAte(u.vencimento) < 0 ? 'vencido' : 'vencendo'} de ${f.nome}`, s: nomeC(f.cliente_id), href: '#/pessoal/sst' })),
+    ...docAlert.map((d) => ({ ord: diasAte(d.validade), cat: 'SST', t: `${d.tipo.toUpperCase()} ${diasAte(d.validade) < 0 ? 'vencido' : 'vencendo'}`, s: nomeC(d.cliente_id), href: '#/pessoal/sst' })),
+    ...obrAt.map((t) => ({ ord: diasAte(t.vencimento), cat: 'Obrigação', t: `${t.titulo} atrasada`, s: nomeC(t.cliente_id), href: '#/pessoal/obrigacoes' })),
+    ...(!S.todos && faltando.length ? [{ ord: diasAte(prazoFech), cat: 'Fechamento', st: 'co', t: `Fechamento de ${nomeComp(S.comp, true)}: ${faltando.length} empresa(s) com arquivos faltando`, s: faltando.slice(0, 3).map(nomeEmp).join(', ') + (faltando.length > 3 ? '…' : ''), href: '#/pessoal/fechamento' }] : []),
   ].sort((a, b) => a.ord - b.ord);
+  const quando = (o) => o.d || (o.ord < 0 ? `${-o.ord}d atrás` : o.ord === 0 ? 'hoje' : o.ord === 1 ? 'amanhã' : o.ord <= 7 ? `em ${o.ord} dias` : dataBR(new Date(Date.now() + o.ord * 864e5).toLocaleDateString('sv-SE')).slice(0, 5));
+  const secoes = [['Atrasado', (o) => o.ord < 0], ['Hoje e próximos 7 dias', (o) => o.ord >= 0 && o.ord <= 7], ['Próximos 30 dias', (o) => o.ord > 7 && o.ord <= 30], ['Mais adiante', (o) => o.ord > 30]];
+  const linha = (o) => `<a class="cx-r" href="${o.href}"><span class="cx-st ${o.st || (o.ord < 0 ? 'bad' : o.ord <= 7 ? 'at' : '')}"></span><span class="cx-t"><b>${esc(o.t)}</b><small>${esc(o.s)}</small></span><span class="cx-tag">${o.cat}</span><span class="cx-d ${o.ord < 0 && !o.d ? 'bad' : ''}">${quando(o)}</span></a>`;
+  const chip = (cls, v, l, href) => `<a class="${cls}" href="${href}"><b>${v}</b>${l}</a>`;
+  const okObr = obr.filter((t) => t.status === 'concluida').length, totObr = obr.filter((t) => t.status !== 'nao_aplica').length;
 
-  el.innerHTML = `<div class="grid g4">
-      ${kpi('', 'Colaboradores ativos', ativos.length, `${emps.length} empresa(s) com funcionários`, '#/pessoal/colaboradores')}
-      ${kpi(ferAlert.length ? 'bad' : 'ok', 'Férias vencidas ou a marcar', ferAlert.length, 'limite em até 90 dias, sem data', '#/pessoal/ferias')}
-      ${kpi(exp.length ? 'at' : '', 'Experiências vencendo', exp.length, 'nos próximos 15 dias', '#/pessoal/experiencia')}
-      ${kpi(movAb.length ? 'at' : '', 'Admissões e rescisões', movAb.length, 'em aberto', '#/pessoal/movimentacoes')}
+  el.innerHTML = `<div class="cx-resumo">
+      ${chip('', ativos.length, 'colaboradores ativos', '#/pessoal/colaboradores')}
+      ${chip(fechadas < emps.length ? 'at' : '', `${fechadas}/${emps.length}`, `fechamentos de ${nomeComp(S.comp, true)}`, '#/pessoal/fechamento')}
+      ${chip(obrAt.length ? 'bad' : '', `${okObr}/${totObr}`, `obrigações concluídas${obrAt.length ? ` · ${obrAt.length} atrasada(s)` : ''}`, '#/pessoal/obrigacoes')}
+      ${chip(ferAlert.length ? 'bad' : '', ferAlert.length, 'férias a resolver', '#/pessoal/ferias')}
+      ${chip(movAb.length ? 'at' : '', movAb.length, 'admissões e rescisões abertas', '#/pessoal/movimentacoes')}
     </div>
-    <div class="lado-a-lado">
-      <div class="grow card"><div class="card-h"><h2>Resolver primeiro</h2><span class="small muted">${prior.length} item(ns)</span></div>
-        <div class="lista">${prior.slice(0, 30).map((p) => `<a class="item" href="${p.href}" style="text-decoration:none;color:inherit"><span class="rk ${p.tag === 'at' ? 'at' : ''}">${p.ord < 0 ? p.ord + 'd' : p.ord === 0 ? 'hoje' : '+' + p.ord + 'd'}</span><div><b>${esc(p.t)}</b><small>${esc(p.s)}</small></div></a>`).join('') || '<div class="vazio"><b>Nada urgente</b>Sem férias vencendo, experiências, movimentações ou obrigações atrasadas.</div>'}</div></div>
-      <div class="aside" style="display:flex;flex-direction:column;gap:16px">
-        <a class="card" href="#/pessoal/fechamento" style="text-decoration:none;color:inherit"><div class="card-h"><h2>Fechamento de ${nomeComp(S.comp, true)}</h2></div><div class="card-b"><div class="kpi" style="border:0;padding:0"><span class="v">${fechadas}/${emps.length}</span><span class="s">empresa(s) com o pacote do mês completo</span></div></div></a>
-        <a class="card" href="#/pessoal/obrigacoes" style="text-decoration:none;color:inherit"><div class="card-h"><h2>Obrigações do mês</h2></div><div class="card-b"><div class="kpi" style="border:0;padding:0"><span class="v" style="color:${obrAt.length ? 'var(--bad)' : 'var(--ok)'}">${obr.filter((t) => t.status === 'concluida').length}/${obr.filter((t) => t.status !== 'nao_aplica').length}</span><span class="s">concluídas${obrAt.length ? ` · ${obrAt.length} atrasada(s)` : ''}</span></div></div></a>
-        ${emp ? `<a class="card" href="#/pessoal/empresas" style="text-decoration:none;color:inherit"><div class="card-h"><h2>Cadastro da empresa</h2></div><div class="card-b small" style="display:flex;flex-direction:column;gap:4px">
-          <span><b>${emp.porte ? PORTES[emp.porte] : 'Porte não informado'}</b> · ${emp.atividade ? ATIVIDADES[emp.atividade] : 'atividade não informada'}</span>
-          <span>${cfg?.sindicato ? esc(cfg.sindicato) : '<span style="color:var(--at-ink)">Convenção coletiva não cadastrada</span>'}</span>
-          ${cfg?.cct_vigencia_fim ? `<span class="muted">Vigência até ${dataBR(cfg.cct_vigencia_fim)}${cfg.piso_salarial ? ' · piso ' + brl(cfg.piso_salarial) : ''}</span>` : ''}</div></a>` : ''}
-      </div></div>`;
+    <div class="cx">${L.length ? secoes.map(([t, f]) => { const l = L.filter(f); return l.length ? `<div class="cx-g">${t}<span>${l.length}</span></div>${l.slice(0, 40).map(linha).join('')}` : ''; }).join('')
+      : '<div class="cx-vazio"><b>Tudo em dia</b>Nenhuma férias, experiência, movimentação, pedido ou obrigação precisando de ação.</div>'}</div>
+    ${emp ? `<div class="card"><div class="card-h"><h2>${esc(nomeEmp(emp))}</h2><a class="btn sec mini" href="#/pessoal/empresas">Abrir cadastro</a></div><div class="card-b small" style="display:flex;flex-direction:column;gap:4px">
+      <span>${emp.porte ? PORTES[emp.porte] : 'Porte não informado'} · ${emp.atividade ? ATIVIDADES[emp.atividade] : 'atividade não informada'}</span>
+      <span>${cfg?.sindicato ? esc(cfg.sindicato) : '<span style="color:var(--at-ink)">Convenção coletiva não cadastrada</span>'}${cfg?.cct_vigencia_fim ? ` · vigência até ${dataBR(cfg.cct_vigencia_fim)}` : ''}${cfg?.piso_salarial ? ' · piso ' + brl(cfg.piso_salarial) : ''}</span></div></div>` : ''}`;
 }

@@ -243,3 +243,7 @@ tr.lk:hover td{background:var(--line-2)}
 .sel-barra{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 18px;background:var(--co-soft);border-bottom:1px solid var(--line);font-size:13px}
 .sel-barra[hidden]{display:none}
 .sel-barra b{margin-right:auto}
+
+/* simulador: títulos de seção dentro do formulário */
+.sim-sec{margin-top:8px;padding-top:10px;border-top:1px solid var(--line);font-size:13px}
+.form .sim-sec:first-of-type{margin-top:0}
